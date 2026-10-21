@@ -408,14 +408,114 @@
       <!-- CLAVE DE RASTREO OPCIONAL -->
       <div>
         <label for="input-clave-rastreo" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
-          Clave de rastreo o referencia (opcional)
+          Clave de rastreo o referencia bancaria (opcional)
         </label>
         <input
           id="input-clave-rastreo"
           type="text"
-          placeholder="Ej. últimos 4 dígitos o folio SPEI"
+          placeholder="Ej. últimos 4 dígitos o folio de transferencia"
           class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-mono-code focus:border-costcoBlue focus:ring-2 focus:ring-costcoBlue/20 focus:outline-none"
         />
+      </div>
+
+      <!-- HONEYPOT ANTI-SPAMBOT (INVISIBLE PARA HUMANOS) -->
+      <div style="position: absolute; left: -9999px; top: -9999px; opacity: 0; pointer-events: none;" aria-hidden="true">
+        <input id="input-honeypot" type="text" name="student_verification_token" tabindex="-1" autocomplete="off" />
+      </div>
+
+      <!-- COMPROBANTE DE PAGO OBLIGATORIO -->
+      <div class="bg-rose-50/70 border-2 border-dashed border-rose-300 rounded-2xl p-4 space-y-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <label class="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+            <span>📸 Captura del Comprobante</span>
+            <span class="text-[10px] bg-costcoRed text-white px-2 py-0.5 rounded-full font-extrabold">Obligatorio</span>
+          </label>
+          <span id="comprobante-status-badge" class="text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md">
+            Pendiente de adjuntar
+          </span>
+        </div>
+
+        <div id="dropzone-comprobante" class="relative bg-white border border-slate-200 hover:border-costcoBlue rounded-xl p-3.5 text-center cursor-pointer transition group">
+          <input
+            id="input-comprobante-archivo"
+            type="file"
+            accept="image/*"
+            required
+            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+          />
+          <div id="comprobante-prompt-box" class="space-y-1">
+            <div class="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-blue-50 text-slate-700 group-hover:text-costcoBlue flex items-center justify-center text-xl mx-auto transition">
+              📎
+            </div>
+            <p class="text-xs font-extrabold text-slate-800">
+              Toca aquí para subir la captura de tu transferencia o CoDi
+            </p>
+            <p class="text-[11px] text-slate-500">
+              Formatos válidos: JPG, PNG, WEBP o captura de pantalla
+            </p>
+          </div>
+
+          <!-- Vista previa de comprobante subido -->
+          <div id="comprobante-preview-box" class="hidden flex items-center gap-3 text-left">
+            <img
+              id="img-comprobante-preview"
+              src=""
+              alt="Vista previa de comprobante"
+              class="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-xl border border-slate-300 shadow-sm shrink-0 bg-slate-100"
+            />
+            <div class="min-w-0 flex-1">
+              <p id="comprobante-filename" class="text-xs font-bold text-slate-900 truncate">comprobante.jpg</p>
+              <p id="comprobante-filesize" class="text-[11px] text-slate-500 mt-0.5"></p>
+              <span class="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md mt-1">
+                <span>✓</span><span>Comprobante listo</span>
+              </span>
+            </div>
+            <button
+              id="btn-cambiar-comprobante"
+              type="button"
+              class="relative z-20 text-xs font-bold text-slate-600 hover:text-costcoRed bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition shrink-0"
+            >
+              Cambiar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DESAFÍO ANTI-BOTS (INGENIERÍA SAFE • CANVAS CAPTCHA) -->
+      <div class="bg-slate-100/80 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <label class="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+            <span>🛡️ Verificación Anti-Bots</span>
+            <span class="text-[10px] text-slate-500 font-semibold">(Seguridad Campus)</span>
+          </label>
+          <button
+            id="btn-refrescar-captcha"
+            type="button"
+            class="text-[11px] font-bold text-costcoBlue hover:underline flex items-center gap-1"
+            title="Generar nuevo desafío"
+          >
+            <span>🔄</span><span>Nuevo reto</span>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div class="bg-white border border-slate-300 rounded-xl p-1 shadow-inner shrink-0">
+            <canvas id="canvas-captcha" width="130" height="42" class="rounded-lg block"></canvas>
+          </div>
+          <div class="flex-1 min-w-0">
+            <input
+              id="input-captcha-respuesta"
+              type="number"
+              inputmode="numeric"
+              required
+              placeholder="Resultado..."
+              class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-mono-code font-bold text-slate-900 focus:border-costcoBlue focus:outline-none"
+            />
+          </div>
+        </div>
+        <p id="captcha-hint" class="text-[10px] text-slate-500">
+          Resuelve la operación matemática de la imagen para validar que eres un estudiante humano.
+        </p>
       </div>
 
       <!-- BOTÓN CONFIRMAR PAGO -->
@@ -430,9 +530,10 @@
         <button
           id="btn-confirmar-pago"
           type="button"
-          class="sm:w-2/3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-black py-3.5 px-4 text-sm shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2"
+          disabled
+          class="sm:w-2/3 rounded-xl bg-slate-300 text-slate-500 cursor-not-allowed font-black py-3.5 px-4 text-sm shadow-md transition flex items-center justify-center gap-2"
         >
-          <span>✅ Ya realicé el pago • Confirmar</span>
+          <span>📸 Adjunta tu comprobante para confirmar</span>
         </button>
       </div>
     </div>

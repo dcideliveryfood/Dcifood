@@ -121,6 +121,20 @@ const dom = {
   inputClaveRastreo: document.getElementById("input-clave-rastreo"),
   btnConfirmarPago: document.getElementById("btn-confirmar-pago"),
 
+  // Comprobante y Anti-Bots
+  inputHoneypot: document.getElementById("input-honeypot"),
+  inputComprobanteArchivo: document.getElementById("input-comprobante-archivo"),
+  comprobanteStatusBadge: document.getElementById("comprobante-status-badge"),
+  comprobantePromptBox: document.getElementById("comprobante-prompt-box"),
+  comprobantePreviewBox: document.getElementById("comprobante-preview-box"),
+  imgComprobantePreview: document.getElementById("img-comprobante-preview"),
+  comprobanteFilename: document.getElementById("comprobante-filename"),
+  comprobanteFilesize: document.getElementById("comprobante-filesize"),
+  btnCambiarComprobante: document.getElementById("btn-cambiar-comprobante"),
+  canvasCaptcha: document.getElementById("canvas-captcha"),
+  inputCaptchaRespuesta: document.getElementById("input-captcha-respuesta"),
+  btnRefrescarCaptcha: document.getElementById("btn-refrescar-captcha"),
+
   // Modal de Espera en Vivo
   modalEspera: document.getElementById("modal-espera"),
   btnCerrarModalEspera: document.getElementById("btn-cerrar-modal-espera"),
@@ -708,6 +722,148 @@ function generarSvgQrCodi(textoSemilla) {
   `;
 }
 
+let comprobanteProcesado = null; // { file, blob, base64, sizeKb }
+let captchaRespuestaEsperada = null;
+
+/**
+ * Genera un desafío matemático sobre Canvas con ruido para evitar bots y scrapers
+ */
+function generarCaptchaAntiBots() {
+  if (!dom.canvasCaptcha) return;
+  const ctx = dom.canvasCaptcha.getContext("2d");
+  const w = dom.canvasCaptcha.width;
+  const h = dom.canvasCaptcha.height;
+
+  // Fondo
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillRect(0, 0, w, h);
+
+  // Operación matemática aleatoria
+  const n1 = Math.floor(Math.random() * 16) + 4;
+  const n2 = Math.floor(Math.random() * 10) + 2;
+  const esSuma = Math.random() > 0.35;
+  const textoOperacion = esSuma ? `${n1} + ${n2} = ?` : `${n1 + n2} - ${n2} = ?`;
+  captchaRespuestaEsperada = esSuma ? n1 + n2 : n1;
+
+  // Ruido de líneas
+  for (let i = 0; i < 4; i++) {
+    ctx.strokeStyle = `rgba(100, 116, 139, ${Math.random() * 0.35 + 0.15})`;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(Math.random() * w, Math.random() * h);
+    ctx.lineTo(Math.random() * w, Math.random() * h);
+    ctx.stroke();
+  }
+
+  // Ruido de puntos
+  for (let i = 0; i < 30; i++) {
+    ctx.fillStyle = `rgba(148, 163, 184, ${Math.random() * 0.4 + 0.2})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * w, Math.random() * h, 1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Dibujar texto inclinado
+  ctx.font = "bold 18px 'JetBrains Mono', monospace";
+  ctx.fillStyle = "#0f172a";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.save();
+  ctx.translate(w / 2, h / 2);
+  ctx.rotate((Math.random() - 0.5) * 0.08);
+  ctx.fillText(textoOperacion, 0, 0);
+  ctx.restore();
+
+  if (dom.inputCaptchaRespuesta) {
+    dom.inputCaptchaRespuesta.value = "";
+  }
+  actualizarEstadoBotonConfirmarPago();
+}
+
+/**
+ * Procesa y comprime la imagen del comprobante de pago en el cliente
+ */
+function procesarComprobante(file) {
+  if (!file || !file.type.startsWith("image/")) {
+    alert("Por favor selecciona un archivo de imagen válido (captura de pantalla, JPG o PNG).");
+    return Promise.resolve(null);
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 900;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const base64 = canvas.toDataURL("image/jpeg", 0.72);
+        canvas.toBlob(
+          (blob) => {
+            const sizeKb = Math.round((blob.size / 1024) * 10) / 10;
+            resolve({ file, blob, base64, sizeKb });
+          },
+          "image/jpeg",
+          0.72
+        );
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Valida si el comprobante está adjunto y el captcha resuelto para habilitar el botón
+ */
+function actualizarEstadoBotonConfirmarPago() {
+  const tieneComprobante = Boolean(comprobanteProcesado);
+  const captchaIngresado = Number(dom.inputCaptchaRespuesta?.value?.trim());
+  const captchaValido =
+    captchaRespuestaEsperada !== null &&
+    !isNaN(captchaIngresado) &&
+    dom.inputCaptchaRespuesta?.value?.trim() !== "" &&
+    captchaIngresado === captchaRespuestaEsperada;
+
+  if (!tieneComprobante) {
+    dom.btnConfirmarPago.disabled = true;
+    dom.btnConfirmarPago.className =
+      "sm:w-2/3 rounded-xl bg-slate-300 text-slate-500 cursor-not-allowed font-black py-3.5 px-4 text-sm shadow-md transition flex items-center justify-center gap-2";
+    dom.btnConfirmarPago.innerHTML = `<span>📸 Adjunta tu comprobante para confirmar</span>`;
+    return;
+  }
+
+  if (!captchaValido) {
+    dom.btnConfirmarPago.disabled = true;
+    dom.btnConfirmarPago.className =
+      "sm:w-2/3 rounded-xl bg-slate-300 text-slate-500 cursor-not-allowed font-black py-3.5 px-4 text-sm shadow-md transition flex items-center justify-center gap-2";
+    dom.btnConfirmarPago.innerHTML = `<span>🛡️ Resuelve el reto anti-bots</span>`;
+    return;
+  }
+
+  dom.btnConfirmarPago.disabled = false;
+  dom.btnConfirmarPago.className =
+    "sm:w-2/3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-black py-3.5 px-4 text-sm shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 cursor-pointer";
+  dom.btnConfirmarPago.innerHTML = `<span>✅ Ya pagué • Confirmar pedido</span>`;
+}
+
 /**
  * Abre el modal de pago con el código ORD-XXXX generado
  */
@@ -736,6 +892,18 @@ function abrirModalPago(datosCliente) {
   dom.modalMontoTotal.textContent = `$${total}`;
   dom.inputClaveRastreo.value = "";
 
+  // Reiniciar estado del comprobante y captcha
+  comprobanteProcesado = null;
+  if (dom.inputComprobanteArchivo) dom.inputComprobanteArchivo.value = "";
+  if (dom.comprobanteStatusBadge) {
+    dom.comprobanteStatusBadge.textContent = "Pendiente de adjuntar";
+    dom.comprobanteStatusBadge.className =
+      "text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md";
+  }
+  if (dom.comprobantePromptBox) dom.comprobantePromptBox.classList.remove("hidden");
+  if (dom.comprobantePreviewBox) dom.comprobantePreviewBox.classList.add("hidden");
+  if (dom.imgComprobantePreview) dom.imgComprobantePreview.src = "";
+
   if (DATOS_PAGO.qrImagen) {
     dom.codiQrContainer.innerHTML = `<img src="${DATOS_PAGO.qrImagen}" alt="QR CoDi" class="w-full h-full object-contain rounded-lg" />`;
   } else {
@@ -744,6 +912,8 @@ function abrirModalPago(datosCliente) {
     );
   }
 
+  generarCaptchaAntiBots();
+  actualizarEstadoBotonConfirmarPago();
   dom.modalPago.showModal();
 }
 
@@ -753,10 +923,30 @@ function abrirModalPago(datosCliente) {
 async function confirmarPagoYRegistrarPedido() {
   if (!borradorCheckout) return;
 
+  // Verificación de Honeypot anti-bots
+  if (dom.inputHoneypot?.value) {
+    console.warn("Intento de bot bloqueado por honeypot.");
+    return;
+  }
+
+  // Verificación obligatoria de comprobante
+  if (!comprobanteProcesado) {
+    alert("Es obligatorio adjuntar la captura de pantalla de tu comprobante de pago para validar tu pedido.");
+    return;
+  }
+
+  // Verificación obligatoria de captcha
+  const respCaptcha = Number(dom.inputCaptchaRespuesta?.value?.trim());
+  if (isNaN(respCaptcha) || respCaptcha !== captchaRespuestaEsperada) {
+    alert("La respuesta del reto anti-bots es incorrecta. Hemos generado un nuevo reto.");
+    generarCaptchaAntiBots();
+    return;
+  }
+
   const btn = dom.btnConfirmarPago;
   const textoOriginal = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = `<span>⏳ Registrando tu pedido...</span>`;
+  btn.innerHTML = `<span>⏳ Subiendo comprobante y registrando...</span>`;
 
   try {
     const claveRastreo = dom.inputClaveRastreo.value.trim();
@@ -765,16 +955,18 @@ async function confirmarPagoYRegistrarPedido() {
     const datosCompletos = {
       ...borradorCheckout,
       clave_rastreo: claveRastreo,
+      comprobante_url: comprobanteProcesado.base64,
       hora_legible: horaLegible
     };
 
-    // 1. Guardar en Firestore (colección 'pedidos')
+    // 1. Guardar en Firestore (colección 'pedidos') con la URL/base64 del comprobante
     const pedidoGuardado = await crearPedidoEnFirestore(datosCompletos);
 
-    // 2. Enviar notificación estructurada a Telegram Bot API
+    // 2. Enviar notificación a Telegram Bot API (con la foto del comprobante adjunta)
     enviarNotificacionTelegram({
       ...pedidoGuardado,
-      hora_legible: horaLegible
+      hora_legible: horaLegible,
+      comprobanteBlob: comprobanteProcesado.blob
     }).catch((err) => console.warn("Aviso Telegram:", err));
 
     // 3. Limpiar carrito y formulario
@@ -787,6 +979,7 @@ async function confirmarPagoYRegistrarPedido() {
     dom.modalPago.close();
     abrirPantallaEsperaEnTiempoReal(pedidoGuardado.id_pedido);
     borradorCheckout = null;
+    comprobanteProcesado = null;
   } catch (error) {
     console.error("Error al registrar pedido:", error);
     alert("Ocurrió un error al registrar tu pedido. Intenta nuevamente.");
@@ -1073,6 +1266,85 @@ function registrarEventos() {
 
   // Confirmar pago -> Guardar en Firestore + Telegram + Pantalla de espera
   dom.btnConfirmarPago.addEventListener("click", confirmarPagoYRegistrarPedido);
+
+  // Adjuntar comprobante de pago
+  if (dom.inputComprobanteArchivo) {
+    dom.inputComprobanteArchivo.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      if (dom.comprobanteStatusBadge) {
+        dom.comprobanteStatusBadge.textContent = "Procesando...";
+        dom.comprobanteStatusBadge.className =
+          "text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md";
+      }
+
+      const resultado = await procesarComprobante(file);
+      if (!resultado) {
+        dom.inputComprobanteArchivo.value = "";
+        comprobanteProcesado = null;
+        if (dom.comprobanteStatusBadge) {
+          dom.comprobanteStatusBadge.textContent = "Pendiente de adjuntar";
+          dom.comprobanteStatusBadge.className =
+            "text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md";
+        }
+        actualizarEstadoBotonConfirmarPago();
+        return;
+      }
+
+      comprobanteProcesado = resultado;
+      if (dom.imgComprobantePreview) {
+        dom.imgComprobantePreview.src = resultado.base64;
+      }
+      if (dom.comprobanteFilename) {
+        dom.comprobanteFilename.textContent = file.name;
+      }
+      if (dom.comprobanteFilesize) {
+        dom.comprobanteFilesize.textContent = `${resultado.sizeKb} KB`;
+      }
+      if (dom.comprobanteStatusBadge) {
+        dom.comprobanteStatusBadge.textContent = "Listo para verificar";
+        dom.comprobanteStatusBadge.className =
+          "text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md";
+      }
+      if (dom.comprobantePromptBox) dom.comprobantePromptBox.classList.add("hidden");
+      if (dom.comprobantePreviewBox) dom.comprobantePreviewBox.classList.remove("hidden");
+
+      actualizarEstadoBotonConfirmarPago();
+    });
+  }
+
+  // Cambiar / eliminar comprobante
+  if (dom.btnCambiarComprobante) {
+    dom.btnCambiarComprobante.addEventListener("click", () => {
+      comprobanteProcesado = null;
+      if (dom.inputComprobanteArchivo) dom.inputComprobanteArchivo.value = "";
+      if (dom.imgComprobantePreview) dom.imgComprobantePreview.src = "";
+      if (dom.comprobanteStatusBadge) {
+        dom.comprobanteStatusBadge.textContent = "Pendiente de adjuntar";
+        dom.comprobanteStatusBadge.className =
+          "text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md";
+      }
+      if (dom.comprobantePromptBox) dom.comprobantePromptBox.classList.remove("hidden");
+      if (dom.comprobantePreviewBox) dom.comprobantePreviewBox.classList.add("hidden");
+
+      actualizarEstadoBotonConfirmarPago();
+    });
+  }
+
+  // Refrescar captcha anti-bots
+  if (dom.btnRefrescarCaptcha) {
+    dom.btnRefrescarCaptcha.addEventListener("click", () => {
+      generarCaptchaAntiBots();
+    });
+  }
+
+  // Input respuesta captcha anti-bots
+  if (dom.inputCaptchaRespuesta) {
+    dom.inputCaptchaRespuesta.addEventListener("input", () => {
+      actualizarEstadoBotonConfirmarPago();
+    });
+  }
 
   // Cerrar modal de espera
   const cerrarEspera = () => {

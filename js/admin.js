@@ -79,7 +79,16 @@ const dom = {
   telegramActionBanner: document.getElementById("telegram-action-banner"),
   telegramActionTitle: document.getElementById("telegram-action-title"),
   telegramActionDesc: document.getElementById("telegram-action-desc"),
-  btnCerrarBannerTelegram: document.getElementById("btn-cerrar-banner-telegram")
+  btnCerrarBannerTelegram: document.getElementById("btn-cerrar-banner-telegram"),
+
+  // Modal Visor de Comprobante
+  modalVisorComprobante: document.getElementById("modal-visor-comprobante"),
+  visorComprobanteTitulo: document.getElementById("visor-comprobante-titulo"),
+  visorComprobanteSubtitulo: document.getElementById("visor-comprobante-subtitulo"),
+  visorComprobanteImg: document.getElementById("visor-comprobante-img"),
+  btnDescargarComprobante: document.getElementById("btn-descargar-comprobante"),
+  btnCerrarVisorComprobante: document.getElementById("btn-cerrar-visor-comprobante"),
+  btnCerrarVisorFooter: document.getElementById("btn-cerrar-visor-footer")
 };
 
 const PIN_STORAGE_KEY = "costco_admin_pin";
@@ -527,6 +536,32 @@ function crearTarjetaPedidoKanban(pedido) {
       ${itemsHtml}
     </ul>
 
+    ${
+      pedido.comprobante_url
+        ? `<div class="flex items-center justify-between gap-2 bg-emerald-50/80 border border-emerald-200 rounded-xl p-2">
+             <div class="flex items-center gap-2 min-w-0">
+               <img src="${pedido.comprobante_url}" alt="Comprobante" class="w-10 h-10 object-cover rounded-lg border border-slate-200 shrink-0 cursor-pointer btn-abrir-comprobante" data-img="${encodeURIComponent(pedido.comprobante_url)}" data-codigo="${pedido.id_pedido}" data-cliente="${pedido.cliente?.nombre || ''}" data-total="$${pedido.total}" />
+               <div class="min-w-0 text-left">
+                 <p class="text-[11px] font-bold text-slate-900 truncate">Comprobante adjunto</p>
+                 <p class="text-[10px] text-emerald-700 font-semibold">Captura disponible</p>
+               </div>
+             </div>
+             <button
+               type="button"
+               class="btn-abrir-comprobante shrink-0 text-xs font-extrabold bg-white hover:bg-emerald-600 hover:text-white text-emerald-800 border border-emerald-300 px-2.5 py-1.5 rounded-lg transition shadow-sm cursor-pointer"
+               data-img="${encodeURIComponent(pedido.comprobante_url)}"
+               data-codigo="${pedido.id_pedido}"
+               data-cliente="${pedido.cliente?.nombre || ''}"
+               data-total="$${pedido.total}"
+             >
+               📸 Ver
+             </button>
+           </div>`
+        : `<div class="text-[11px] text-slate-400 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5">
+             <span>⚠️</span><span>Sin captura adjunta</span>
+           </div>`
+    }
+
     <div class="flex items-center justify-between pt-1">
       <span class="text-xs font-bold uppercase text-slate-400">Total Orden</span>
       <span class="text-base font-black text-costcoRed">$${pedido.total}</span>
@@ -736,6 +771,38 @@ function registrarEventosAdmin() {
   dom.colPendiente.addEventListener("click", manejarClickColumna);
   dom.colAprobado.addEventListener("click", manejarClickColumna);
   dom.colCompletado.addEventListener("click", manejarClickColumna);
+
+  // Visor de Comprobantes de Pago
+  const abrirVisorComprobante = (imgSrc, codigo, cliente, total) => {
+    if (!dom.modalVisorComprobante) return;
+    dom.visorComprobanteTitulo.textContent = `Comprobante de ${codigo}`;
+    dom.visorComprobanteSubtitulo.textContent = `${cliente} • Total: ${total}`;
+    dom.visorComprobanteImg.src = imgSrc;
+    dom.btnDescargarComprobante.href = imgSrc;
+    dom.btnDescargarComprobante.download = `comprobante-${codigo}.jpg`;
+    dom.modalVisorComprobante.showModal();
+  };
+
+  const cerrarVisor = () => dom.modalVisorComprobante?.close();
+  dom.btnCerrarVisorComprobante?.addEventListener("click", cerrarVisor);
+  dom.btnCerrarVisorFooter?.addEventListener("click", cerrarVisor);
+
+  // Delegar clic de ver comprobante en las 3 columnas
+  const manejarClickVerComprobante = (e) => {
+    const trigger = e.target.closest(".btn-abrir-comprobante");
+    if (!trigger) return;
+    const imgSrc = decodeURIComponent(trigger.dataset.img || "");
+    const codigo = trigger.dataset.codigo || "";
+    const cliente = trigger.dataset.cliente || "";
+    const total = trigger.dataset.total || "";
+    if (imgSrc) {
+      abrirVisorComprobante(imgSrc, codigo, cliente, total);
+    }
+  };
+
+  dom.colPendiente.addEventListener("click", manejarClickVerComprobante);
+  dom.colAprobado.addEventListener("click", manejarClickVerComprobante);
+  dom.colCompletado.addEventListener("click", manejarClickVerComprobante);
 
   // Filtros del Kanban
   dom.inputBuscarKanban.addEventListener("input", () => {

@@ -198,6 +198,37 @@ export async function enviarNotificacionTelegram(pedido) {
     };
   }
 
+  // Si el pedido incluye la captura del comprobante, enviar como foto con sendPhoto
+  const comprobante = pedido.comprobanteBlob || pedido.comprobanteFile;
+  if (comprobante) {
+    try {
+      const endpointPhoto = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+      const formData = new FormData();
+      formData.append("chat_id", chatId);
+      formData.append("photo", comprobante, `${pedido.id_pedido || "comprobante"}.jpg`);
+      formData.append("caption", textoMensaje);
+      formData.append("reply_markup", JSON.stringify(replyMarkup));
+
+      const responsePhoto = await fetch(endpointPhoto, {
+        method: "POST",
+        body: formData
+      });
+      const dataPhoto = await responsePhoto.json();
+
+      if (responsePhoto.ok && dataPhoto.ok) {
+        return {
+          ok: true,
+          simulated: false,
+          message: textoMensaje,
+          response: dataPhoto
+        };
+      }
+      console.warn("sendPhoto con comprobante rechazado por Telegram, enviando como texto:", dataPhoto);
+    } catch (errFoto) {
+      console.warn("Error enviando comprobante a Telegram con sendPhoto:", errFoto);
+    }
+  }
+
   const endpoint = `https://api.telegram.org/bot${botToken}/sendMessage`;
   const payload = {
     chat_id: chatId,
