@@ -68,10 +68,99 @@ const dom = {
   inputTgToken: document.getElementById("input-tg-token"),
   inputTgChatId: document.getElementById("input-tg-chatid"),
   tgTestFeedback: document.getElementById("tg-test-feedback"),
-  btnProbarTelegram: document.getElementById("btn-probar-telegram")
+  btnProbarTelegram: document.getElementById("btn-probar-telegram"),
+
+  // Seguridad PIN y Acciones Telegram
+  btnBloquearPanel: document.getElementById("btn-bloquear-panel"),
+  pinLockOverlay: document.getElementById("pin-lock-overlay"),
+  formPinLogin: document.getElementById("form-pin-login"),
+  inputPinAcceso: document.getElementById("input-pin-acceso"),
+  pinErrorMsg: document.getElementById("pin-error-msg"),
+  telegramActionBanner: document.getElementById("telegram-action-banner"),
+  telegramActionTitle: document.getElementById("telegram-action-title"),
+  telegramActionDesc: document.getElementById("telegram-action-desc"),
+  btnCerrarBannerTelegram: document.getElementById("btn-cerrar-banner-telegram")
 };
 
+const PIN_STORAGE_KEY = "costco_admin_pin";
+const SESSION_UNLOCKED_KEY = "costco_admin_unlocked";
+const PIN_POR_DEFECTO = "2026";
+let accionTelegramPendienteProcesada = false;
+
+function estaDesbloqueado() {
+  return sessionStorage.getItem(SESSION_UNLOCKED_KEY) === "true";
+}
+
+function verificarPinBloqueo() {
+  if (estaDesbloqueado()) {
+    dom.pinLockOverlay.classList.add("hidden");
+  } else {
+    dom.pinLockOverlay.classList.remove("hidden");
+    dom.inputPinAcceso.value = "";
+    dom.pinErrorMsg.classList.add("hidden");
+    setTimeout(() => dom.inputPinAcceso?.focus(), 300);
+  }
+}
+
+function bloquearPanel() {
+  sessionStorage.removeItem(SESSION_UNLOCKED_KEY);
+  verificarPinBloqueo();
+}
+
+/**
+ * Procesa acciones automáticas enviadas desde los botones de Telegram
+ * Ej: admin.html?accion=aprobar&id=ORD-7391
+ */
+async function procesarAccionTelegram() {
+  if (accionTelegramPendienteProcesada) return;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const accion = urlParams.get("accion");
+  const idPedido = urlParams.get("id");
+  const buscar = urlParams.get("buscar");
+
+  if (buscar && dom.inputBuscarKanban) {
+    dom.inputBuscarKanban.value = buscar;
+    filtroBusqueda = buscar;
+    renderizarTableroKanban();
+  }
+
+  if (idPedido && (accion === "aprobar" || accion === "entregar")) {
+    const pedido = listaPedidos.find(
+      (p) => (p.id_pedido || "").toUpperCase() === idPedido.toUpperCase()
+    );
+
+    if (pedido) {
+      accionTelegramPendienteProcesada = true;
+      const nuevoEstatus = accion === "aprobar" ? "aprobado" : "entregado";
+
+      try {
+        await actualizarEstatusPedido(pedido.docId, nuevoEstatus);
+        mostrarBannerAccionTelegram(
+          `⚡ Pedido ${pedido.id_pedido} marcado como ${nuevoEstatus.toUpperCase()}`,
+          `Cliente: ${pedido.cliente?.nombre || ""} (${pedido.cliente?.facultad_edificio || ""}) • Total: $${pedido.total}`
+        );
+      } catch (err) {
+        console.error("Error ejecutando acción de Telegram:", err);
+      }
+
+      // Limpiar URL para evitar reejecutar al refrescar
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
+}
+
+function mostrarBannerAccionTelegram(titulo, desc) {
+  if (!dom.telegramActionBanner) return;
+  dom.telegramActionTitle.textContent = titulo;
+  dom.telegramActionDesc.textContent = desc;
+  dom.telegramActionBanner.classList.remove("hidden");
+  dom.telegramActionBanner.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function iniciarAdmin() {
+  verificarPinBloqueo();
+
   if (isDemoMode) {
     dom.connectionPill.textContent = "Modo Demo Local (Sincronizado)";
     dom.connectionPill.className =
@@ -92,6 +181,7 @@ function iniciarAdmin() {
     listaPedidos = pedidos;
     renderizarMetricasDelDia();
     renderizarTableroKanban();
+    procesarAccionTelegram();
   });
 }
 
@@ -727,6 +817,32 @@ function registrarEventosAdmin() {
         "rounded-xl p-3 font-medium bg-rose-50 text-rose-900 border border-rose-200 whitespace-pre-line";
       dom.tgTestFeedback.textContent = `❌ Error de Telegram API: ${res.message}`;
     }
+  });
+
+  // Eventos de Seguridad PIN
+  dom.formPinLogin?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const pinIngresado = dom.inputPinAcceso.value.trim();
+    const pinConfigurado = localStorage.getItem(PIN_STORAGE_KEY) || PIN_POR_DEFECTO;
+
+    if (pinIngresado === pinConfigurado) {
+      sessionStorage.setItem(SESSION_UNLOCKED_KEY, "true");
+      dom.pinErrorMsg.classList.add("hidden");
+      dom.pinLockOverlay.classList.add("hidden");
+      procesarAccionTelegram();
+    } else {
+      dom.pinErrorMsg.classList.remove("hidden");
+      dom.inputPinAcceso.value = "";
+      dom.inputPinAcceso.focus();
+    }
+  });
+
+  dom.btnBloquearPanel?.addEventListener("click", () => {
+    bloquearPanel();
+  });
+
+  dom.btnCerrarBannerTelegram?.addEventListener("click", () => {
+    dom.telegramActionBanner.classList.add("hidden");
   });
 }
 
