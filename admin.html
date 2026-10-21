@@ -158,7 +158,7 @@
         <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
           Selecciona el estado operativo actual
         </label>
-        <div id="status-switches-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div id="status-switches-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <button
             type="button"
             data-estado="abierto"
@@ -179,7 +179,7 @@
             <span class="text-2xl">🚗</span>
             <div>
               <p class="text-sm font-black">En camino a Costco</p>
-              <p class="text-[11px] opacity-80">Comprando en tienda • Últimos pedidos</p>
+              <p class="text-[11px] opacity-80">Comprando en tienda</p>
             </div>
           </button>
 
@@ -191,7 +191,19 @@
             <span class="text-2xl">📚</span>
             <div>
               <p class="text-sm font-black">En clase</p>
-              <p class="text-[11px] opacity-80">Pausa temporal y muestra aviso</p>
+              <p class="text-[11px] opacity-80">Aviso visible • No bloquea pedidos</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            data-estado="entregando"
+            class="status-switch-btn rounded-2xl border-2 p-3.5 text-left transition flex items-start gap-3"
+          >
+            <span class="text-2xl">🥪</span>
+            <div>
+              <p class="text-sm font-black text-costcoRed">Entregando</p>
+              <p class="text-[11px] opacity-90 font-medium">Afuera de cafetería • Bloquea pedidos</p>
             </div>
           </button>
 
@@ -200,10 +212,10 @@
             data-estado="cerrado"
             class="status-switch-btn rounded-2xl border-2 p-3.5 text-left transition flex items-start gap-3"
           >
-            <span class="text-2xl">🔴</span>
+            <span class="text-2xl">🌙</span>
             <div>
-              <p class="text-sm font-black">Cerrado</p>
-              <p class="text-[11px] opacity-80">Bloquea la creación de pedidos</p>
+              <p class="text-sm font-black">Cerrado por hoy</p>
+              <p class="text-[11px] opacity-80">Recibe pedidos para mañana</p>
             </div>
           </button>
         </div>
@@ -248,17 +260,20 @@
       <!-- Plantillas rápidas de avisos -->
       <div class="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
         <span class="text-slate-400 font-semibold mr-1">Avisos rápidos:</span>
+        <button type="button" data-preset-notice="🥪 Entregando afuera de cafetería en este momento • Pedidos nuevos en pausa" class="preset-notice-btn bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 px-2.5 py-1 rounded-lg font-bold transition">
+          🥪 Entregando afuera de cafetería
+        </button>
+        <button type="button" data-preset-notice="🌙 Recepción de hoy cerrada • ¡Ya puedes programar tu pedido para mañana!" class="preset-notice-btn bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded-lg font-bold transition">
+          🌙 Pedidos para mañana
+        </button>
         <button type="button" data-preset-notice="¡Pedidos abiertos! Entregas hoy afuera de cafetería 🍕" class="preset-notice-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-medium transition">
-          🍕 Entregas afuera de cafetería
+          🍕 Entregas hoy
         </button>
-        <button type="button" data-preset-notice="En clase hasta las 4:00 PM 📚 Regresando abrimos ronda vespertina" class="preset-notice-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-medium transition">
-          📚 En clase hasta las 4:00 PM
+        <button type="button" data-preset-notice="En clase hasta las 4:00 PM 📚 Pueden seguir enviando pedidos" class="preset-notice-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-medium transition">
+          📚 En clase (activo)
         </button>
-        <button type="button" data-preset-notice="🚗 En fila del Food Court de Costco • ¡Últimos 15 min para pedir!" class="preset-notice-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-medium transition">
+        <button type="button" data-preset-notice="🚗 En fila del Food Court de Costco • ¡Últimos minutos para pedir!" class="preset-notice-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-medium transition">
           🚗 En fila de Costco
-        </button>
-        <button type="button" data-preset-notice="¡Todo agotado por hoy! Nos vemos mañana a las 11:00 AM 🙌" class="preset-notice-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-medium transition">
-          🔒 Agotado por hoy
         </button>
       </div>
     </section>

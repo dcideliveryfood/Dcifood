@@ -355,7 +355,9 @@ export async function crearPedidoEnFirestore(datosPedido) {
     total: Number(datosPedido.total),
     estatus: "pendiente",
     clave_rastreo: (datosPedido.clave_rastreo || "").trim(),
-    comprobante_url: (datosPedido.comprobante_url || "").trim()
+    comprobante_url: (datosPedido.comprobante_url || "").trim(),
+    programacion_entrega: datosPedido.programacion_entrega || "hoy",
+    programacion_motivo: (datosPedido.programacion_motivo || "").trim()
   };
 
   if (db) {

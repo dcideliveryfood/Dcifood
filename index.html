@@ -249,6 +249,9 @@
             />
           </div>
 
+          <!-- Aviso dinámico de programación de entrega (Hoy vs Mañana) -->
+          <div id="checkout-programacion-banner" class="hidden rounded-xl p-3 text-xs font-bold space-y-0.5"></div>
+
           <button
             id="btn-proceder-pago"
             type="submit"
@@ -485,6 +488,9 @@
           ⚠️ Coloca tu código en el concepto de la transferencia
         </p>
       </div>
+
+      <!-- BADGE DE PROGRAMACIÓN DE ENTREGA -->
+      <div id="modal-programacion-badge" class="rounded-xl p-3 text-xs font-bold flex items-center justify-between gap-2"></div>
 
       <!-- MONTO Y RESUMEN RÁPIDO -->
       <div class="flex items-center justify-between gap-2 bg-slate-100 rounded-2xl px-4 py-3">
@@ -728,6 +734,21 @@
           Esta pantalla se actualizará automáticamente en cuanto el administrador apruebe tu pedido.
         </p>
       </div>
+
+      <!-- AVISO DE VALIDACIÓN BANCARIA (HASTA 15 MINUTOS) -->
+      <div id="espera-aviso-demora" class="bg-amber-50 border-2 border-amber-300 text-amber-950 rounded-2xl p-4 text-left shadow-sm space-y-1.5">
+        <div class="flex items-center gap-2 font-black text-amber-950 text-xs sm:text-sm">
+          <span class="text-lg">⏱️</span>
+          <span>Tiempo estimado de validación: hasta 15 minutos</span>
+        </div>
+        <p class="text-[11px] sm:text-xs leading-relaxed text-amber-900/90 font-medium">
+          Estamos verificando tu comprobante de transferencia en la app bancaria para autorizar tu orden. 
+          <strong>No es necesario que te quedes esperando en esta pantalla:</strong> puedes cerrarla o volver con tu código <code class="font-mono-code font-bold bg-amber-200/70 px-1 py-0.5 rounded text-slate-900" id="espera-codigo-inline">ORD-0000</code> y se actualizará sola en cuanto tu pago quede confirmado.
+        </p>
+      </div>
+
+      <!-- BADGE DE PROGRAMACIÓN (HOY O MAÑANA) EN PANTALLA DE ESPERA -->
+      <div id="espera-programacion-badge" class="hidden rounded-xl p-3 text-xs font-bold text-center"></div>
 
       <!-- Línea de progreso de 3 pasos -->
       <div class="grid grid-cols-3 gap-1.5 sm:gap-2 text-center text-[11px] sm:text-xs">

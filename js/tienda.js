@@ -89,6 +89,7 @@ const dom = {
 
   checkoutCard: document.getElementById("checkout-card"),
   checkoutForm: document.getElementById("checkout-form"),
+  checkoutProgramacionBanner: document.getElementById("checkout-programacion-banner"),
   inputNombre: document.getElementById("cliente-nombre"),
   inputWhatsapp: document.getElementById("cliente-whatsapp"),
   whatsappError: document.getElementById("whatsapp-error"),
@@ -110,6 +111,7 @@ const dom = {
   btnCancelarModalPago: document.getElementById("btn-cancelar-modal-pago"),
   modalCodigoOrden: document.getElementById("modal-codigo-orden"),
   btnCopiarCodigo: document.getElementById("btn-copiar-codigo"),
+  modalProgramacionBadge: document.getElementById("modal-programacion-badge"),
   modalResumenCliente: document.getElementById("modal-resumen-cliente"),
   modalMontoTotal: document.getElementById("modal-monto-total"),
   codiQrContainer: document.getElementById("codi-qr-container"),
@@ -140,7 +142,10 @@ const dom = {
   btnCerrarModalEspera: document.getElementById("btn-cerrar-modal-espera"),
   btnNuevoPedidoEspera: document.getElementById("btn-nuevo-pedido-espera"),
   esperaCodigoTitulo: document.getElementById("espera-codigo-titulo"),
+  esperaCodigoInline: document.getElementById("espera-codigo-inline"),
   esperaStatusCard: document.getElementById("espera-status-card"),
+  esperaAvisoDemora: document.getElementById("espera-aviso-demora"),
+  esperaProgramacionBadge: document.getElementById("espera-programacion-badge"),
   esperaIcono: document.getElementById("espera-icono"),
   esperaEstatusPill: document.getElementById("espera-estatus-pill"),
   esperaMensajePrincipal: document.getElementById("espera-mensaje-principal"),
@@ -171,9 +176,61 @@ function obtenerSeleccionTarjeta(prod) {
 
 /**
  * Determina si el estado actual de la tienda permite crear nuevos pedidos.
+ * Según la regla del negocio: los pedidos SOLO se bloquean cuando el estado
+ * es "entregando" (afuera de cafetería). Si la tienda está cerrada o en clase,
+ * los pedidos NO se bloquean, sino que se programan para el día siguiente.
  */
 function permiteNuevosPedidos(estado) {
-  return estado === "abierto" || estado === "en_camino";
+  return estado !== "entregando";
+}
+
+/**
+ * Determina si una orden es para surtir HOY o queda programada para MAÑANA
+ * según la hora de corte configurada y el estado de la tienda.
+ */
+export function calcularProgramacionEntrega(horaCorteStr, estadoTienda) {
+  if (estadoTienda === "cerrado") {
+    return {
+      esParaManana: true,
+      tipo: "manana",
+      etiqueta: "📅 Programado para MAÑANA",
+      motivo: "Tienda cerrada por hoy"
+    };
+  }
+
+  if (!horaCorteStr) {
+    return {
+      esParaManana: false,
+      tipo: "hoy",
+      etiqueta: "⚡ Para surtir HOY",
+      motivo: "Antes de la hora de corte"
+    };
+  }
+
+  const partes = horaCorteStr.split(":");
+  const corteH = parseInt(partes[0], 10);
+  const corteM = parseInt(partes[1], 10);
+  const ahora = new Date();
+  const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+  const minutosCorte = (isNaN(corteH) ? 13 : corteH) * 60 + (isNaN(corteM) ? 30 : corteM);
+
+  const esDespuesDeCorte = minutosAhora >= minutosCorte;
+
+  if (esDespuesDeCorte) {
+    return {
+      esParaManana: true,
+      tipo: "manana",
+      etiqueta: "📅 Programado para MAÑANA",
+      motivo: `Pedido después del corte de hoy (${horaCorteStr})`
+    };
+  } else {
+    return {
+      esParaManana: false,
+      tipo: "hoy",
+      etiqueta: "⚡ Para surtir HOY",
+      motivo: `Pedido antes del corte de hoy (${horaCorteStr})`
+    };
+  }
 }
 
 /**
@@ -237,12 +294,27 @@ function renderizarEstadoTienda(config) {
     "bg-emerald-600",
     "bg-costcoBlue",
     "bg-amber-600",
-    "bg-rose-700"
+    "bg-rose-700",
+    "bg-slate-800"
   );
 
-  if (estado === "abierto") {
-    dom.statusBanner.classList.add("bg-emerald-600");
-    dom.statusBadgeLabel.textContent = "🟢 ABIERTO";
+  const programacion = calcularProgramacionEntrega(hora_corte, estado);
+
+  if (estado === "entregando") {
+    // ÚNICO ESTADO QUE BLOQUEA LA CREACIÓN DE PEDIDOS
+    dom.statusBanner.classList.add("bg-rose-700");
+    dom.statusBadgeLabel.textContent = "🥪 ENTREGANDO EN CAFETERÍA";
+    dom.closedOverlay.classList.remove("hidden");
+    dom.closedIconBox.textContent = "🥪";
+    dom.closedTitleBadge.textContent = "Entregas en vivo afuera de cafetería";
+    dom.closedHeading.textContent =
+      aviso_personalizado || "Entregando pedidos afuera de cafetería en este momento";
+    dom.closedMessageDetail.textContent =
+      "Los nuevos pedidos están pausados temporalmente mientras entregamos a los alumnos. ¡Reanudamos en breve!";
+  } else if (estado === "cerrado") {
+    // Cerrado por hoy, pero permite subir pedidos para el día siguiente
+    dom.statusBanner.classList.add("bg-slate-800");
+    dom.statusBadgeLabel.textContent = "🌙 CERRADO POR HOY (RECIBIENDO PARA MAÑANA)";
     dom.closedOverlay.classList.add("hidden");
   } else if (estado === "en_camino") {
     dom.statusBanner.classList.add("bg-costcoBlue");
@@ -250,26 +322,17 @@ function renderizarEstadoTienda(config) {
     dom.closedOverlay.classList.add("hidden");
   } else if (estado === "en_clase") {
     dom.statusBanner.classList.add("bg-amber-600");
-    dom.statusBadgeLabel.textContent = "📚 EN CLASE (PAUSADO)";
-    dom.closedOverlay.classList.remove("hidden");
-    dom.closedIconBox.textContent = "📚";
-    dom.closedTitleBadge.textContent = "En clase temporalmente";
-    dom.closedHeading.textContent =
-      aviso_personalizado || "En clase en este momento — regresamos pronto";
-    dom.closedMessageDetail.textContent = `Los pedidos están pausados mientras estamos en clase. Hora de corte del día: ${
-      hora_corte || "--:--"
-    }.`;
+    dom.statusBadgeLabel.textContent = "📚 EN CLASE (PEDIDOS ABIERTOS)";
+    dom.closedOverlay.classList.add("hidden");
   } else {
-    dom.statusBanner.classList.add("bg-rose-700");
-    dom.statusBadgeLabel.textContent = "🔴 CERRADO";
-    dom.closedOverlay.classList.remove("hidden");
-    dom.closedIconBox.textContent = "🔒";
-    dom.closedTitleBadge.textContent = "Tienda Cerrada";
-    dom.closedHeading.textContent =
-      aviso_personalizado || "La recepción de pedidos de hoy ha concluido";
-    dom.closedMessageDetail.textContent = `No es posible registrar nuevos pedidos en este momento (Hora de corte: ${
-      hora_corte || "--:--"
-    }).`;
+    // abierto
+    dom.statusBanner.classList.add("bg-emerald-600");
+    if (programacion.esParaManana) {
+      dom.statusBadgeLabel.textContent = "🟢 ABIERTO (PEDIDOS PARA MAÑANA)";
+    } else {
+      dom.statusBadgeLabel.textContent = "🟢 ABIERTO (ENTREGA HOY)";
+    }
+    dom.closedOverlay.classList.add("hidden");
   }
 }
 
@@ -651,20 +714,69 @@ function actualizarEstadoBotonCheckout() {
   const { items } = obtenerResumenCarrito();
   const abierta = permiteNuevosPedidos(configTiendaActual.estado);
 
+  const programacion = calcularProgramacionEntrega(
+    configTiendaActual.hora_corte,
+    configTiendaActual.estado
+  );
+
+  // Banner informativo de programación en el formulario de Checkout
+  if (dom.checkoutProgramacionBanner) {
+    dom.checkoutProgramacionBanner.classList.remove("hidden");
+    if (!abierta) {
+      dom.checkoutProgramacionBanner.className =
+        "rounded-xl p-3 text-xs font-bold bg-rose-50 text-rose-900 border border-rose-200 mb-3 space-y-0.5";
+      dom.checkoutProgramacionBanner.innerHTML = `
+        <div class="flex items-center gap-1.5 font-black text-rose-950">
+          <span>🥪</span><span>Entregando afuera de cafetería</span>
+        </div>
+        <p class="text-[11px] font-medium text-rose-800">Estamos entregando pedidos en este momento. La recepción se reanudará en breve.</p>
+      `;
+    } else if (programacion.esParaManana) {
+      dom.checkoutProgramacionBanner.className =
+        "rounded-xl p-3 text-xs font-bold bg-purple-50 text-purple-900 border border-purple-200 mb-3 space-y-0.5";
+      dom.checkoutProgramacionBanner.innerHTML = `
+        <div class="flex items-center gap-1.5 font-black text-purple-950">
+          <span>📅</span><span>Programado para entrega MAÑANA</span>
+        </div>
+        <p class="text-[11px] font-medium text-purple-800">${programacion.motivo}. ¡Tu pedido se surtirá para mañana!</p>
+      `;
+    } else {
+      dom.checkoutProgramacionBanner.className =
+        "rounded-xl p-3 text-xs font-bold bg-emerald-50 text-emerald-900 border border-emerald-200 mb-3 space-y-0.5";
+      dom.checkoutProgramacionBanner.innerHTML = `
+        <div class="flex items-center gap-1.5 font-black text-emerald-950">
+          <span>⚡</span><span>Para surtir y entregar HOY</span>
+        </div>
+        <p class="text-[11px] font-medium text-emerald-800">Pedido dentro del horario de corte de hoy (${configTiendaActual.hora_corte || "13:30"}).</p>
+      `;
+    }
+  }
+
   if (!abierta) {
     dom.btnProcederPago.disabled = true;
-    dom.btnProcederPago.innerHTML = `<span>🔒 Tienda Cerrada (${configTiendaActual.estado.toUpperCase()})</span>`;
+    dom.btnProcederPago.className =
+      "w-full rounded-xl bg-slate-300 text-slate-500 cursor-not-allowed font-extrabold py-3.5 px-4 text-sm shadow-md transition flex items-center justify-center gap-2";
+    dom.btnProcederPago.innerHTML = `<span>🥪 Pausado: Entregando en cafetería</span>`;
     return;
   }
 
   if (items.length === 0) {
     dom.btnProcederPago.disabled = true;
+    dom.btnProcederPago.className =
+      "w-full rounded-xl bg-slate-300 text-slate-500 cursor-not-allowed font-extrabold py-3.5 px-4 text-sm shadow-md transition flex items-center justify-center gap-2";
     dom.btnProcederPago.innerHTML = `<span>Agrega productos para continuar</span>`;
     return;
   }
 
   dom.btnProcederPago.disabled = false;
-  dom.btnProcederPago.innerHTML = `<span>Proceder al Pago (CoDi / SPEI)</span><span>→</span>`;
+  dom.btnProcederPago.className =
+    "w-full rounded-xl bg-costcoRed hover:bg-red-700 active:scale-[0.99] text-white font-extrabold py-3.5 px-4 text-sm shadow-md shadow-red-600/15 transition flex items-center justify-center gap-2 cursor-pointer";
+
+  if (programacion.esParaManana) {
+    dom.btnProcederPago.innerHTML = `<span>Proceder al Pago (📅 Entrega Mañana)</span><span>→</span>`;
+  } else {
+    dom.btnProcederPago.innerHTML = `<span>Proceder al Pago (⚡ Entrega Hoy)</span><span>→</span>`;
+  }
 }
 
 /**
@@ -872,9 +984,16 @@ function abrirModalPago(datosCliente) {
   if (items.length === 0) return;
 
   const idPedido = generarCodigoPedido();
+  const programacion = calcularProgramacionEntrega(
+    configTiendaActual.hora_corte,
+    configTiendaActual.estado
+  );
+
   borradorCheckout = {
     id_pedido: idPedido,
     cliente: datosCliente,
+    programacion_entrega: programacion.tipo,
+    programacion_motivo: programacion.motivo,
     items: items.map((i) => ({
       id: i.id,
       nombre: i.nombre,
@@ -891,6 +1010,37 @@ function abrirModalPago(datosCliente) {
   dom.modalResumenCliente.textContent = `${datosCliente.nombre} • ${datosCliente.facultad_edificio}`;
   dom.modalMontoTotal.textContent = `$${total}`;
   dom.inputClaveRastreo.value = "";
+
+  // Renderizar badge de programación en el modal de pago
+  if (dom.modalProgramacionBadge) {
+    if (programacion.esParaManana) {
+      dom.modalProgramacionBadge.className =
+        "rounded-xl p-3 text-xs font-bold flex items-center justify-between gap-2 bg-purple-100 text-purple-950 border border-purple-200";
+      dom.modalProgramacionBadge.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="text-base">📅</span>
+          <div>
+            <p class="font-extrabold uppercase tracking-wide">Entrega para MAÑANA</p>
+            <p class="text-[11px] font-normal text-purple-800">${programacion.motivo}</p>
+          </div>
+        </div>
+        <span class="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-purple-200 text-purple-900 shrink-0">Próximo día</span>
+      `;
+    } else {
+      dom.modalProgramacionBadge.className =
+        "rounded-xl p-3 text-xs font-bold flex items-center justify-between gap-2 bg-emerald-100 text-emerald-950 border border-emerald-200";
+      dom.modalProgramacionBadge.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="text-base">⚡</span>
+          <div>
+            <p class="font-extrabold uppercase tracking-wide">Entrega para HOY</p>
+            <p class="text-[11px] font-normal text-emerald-800">${programacion.motivo}</p>
+          </div>
+        </div>
+        <span class="text-[10px] uppercase font-black px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900 shrink-0">Mismo día</span>
+      `;
+    }
+  }
 
   // Reiniciar estado del comprobante y captcha
   comprobanteProcesado = null;
@@ -952,8 +1102,16 @@ async function confirmarPagoYRegistrarPedido() {
     const claveRastreo = dom.inputClaveRastreo.value.trim();
     const horaLegible = formatearHoraPedido(new Date());
 
+    // Recalcular programación al momento de confirmar
+    const programacion = calcularProgramacionEntrega(
+      configTiendaActual.hora_corte,
+      configTiendaActual.estado
+    );
+
     const datosCompletos = {
       ...borradorCheckout,
+      programacion_entrega: programacion.tipo,
+      programacion_motivo: programacion.motivo,
       clave_rastreo: claveRastreo,
       comprobante_url: comprobanteProcesado.base64,
       hora_legible: horaLegible
@@ -965,6 +1123,8 @@ async function confirmarPagoYRegistrarPedido() {
     // 2. Enviar notificación a Telegram Bot API (con la foto del comprobante adjunta)
     enviarNotificacionTelegram({
       ...pedidoGuardado,
+      programacion_entrega: programacion.tipo,
+      programacion_motivo: programacion.motivo,
       hora_legible: horaLegible,
       comprobanteBlob: comprobanteProcesado.blob
     }).catch((err) => console.warn("Aviso Telegram:", err));
@@ -1000,6 +1160,7 @@ function abrirPantallaEsperaEnTiempoReal(idPedido) {
 
   const codigo = idPedido.trim().toUpperCase();
   dom.esperaCodigoTitulo.textContent = codigo;
+  if (dom.esperaCodigoInline) dom.esperaCodigoInline.textContent = codigo;
   dom.modalEspera.showModal();
 
   cancelarSuscripcionPedidoEspera = escucharPedidoPorCodigo(codigo, (pedido) => {
@@ -1015,19 +1176,42 @@ function abrirPantallaEsperaEnTiempoReal(idPedido) {
       dom.esperaClienteUbicacion.textContent = "-";
       dom.esperaItemsLista.innerHTML = "";
       dom.esperaTotalMonto.textContent = "$0";
+      if (dom.esperaProgramacionBadge) dom.esperaProgramacionBadge.classList.add("hidden");
+      if (dom.esperaAvisoDemora) dom.esperaAvisoDemora.classList.add("hidden");
       return;
     }
 
     dom.esperaClienteNombre.textContent = pedido.cliente?.nombre || "-";
     dom.esperaClienteUbicacion.textContent = pedido.cliente?.facultad_edificio || "-";
     dom.esperaTotalMonto.textContent = `$${pedido.total || 0}`;
+    if (dom.esperaCodigoInline) dom.esperaCodigoInline.textContent = pedido.id_pedido || codigo;
 
-    dom.esperaItemsLista.innerHTML = (pedido.items || [])
-      .map(
-        (i) =>
-          `<div class="flex justify-between gap-2 border-b border-slate-100 pb-1 last:border-0"><span class="break-words min-w-0 flex-1">${i.cantidad}x ${i.nombre}</span><span class="shrink-0 font-mono-code font-bold">$${i.subtotal}</span></div>`
-      )
-      .join("");
+    // Renderizar badge de programación en la pantalla de espera
+    if (dom.esperaProgramacionBadge) {
+      dom.esperaProgramacionBadge.classList.remove("hidden");
+      const esManana = pedido.programacion_entrega === "manana";
+      if (esManana) {
+        dom.esperaProgramacionBadge.className =
+          "rounded-xl p-3 text-xs font-bold text-center bg-purple-100 text-purple-950 border border-purple-200";
+        dom.esperaProgramacionBadge.innerHTML = `
+          <div class="flex items-center justify-center gap-1.5">
+            <span>📅</span>
+            <span class="font-extrabold uppercase tracking-wide">Pedido programado para MAÑANA</span>
+          </div>
+          <p class="text-[11px] font-normal text-purple-800 mt-0.5">${pedido.programacion_motivo || "Se surtirá en la compra del siguiente día"}</p>
+        `;
+      } else {
+        dom.esperaProgramacionBadge.className =
+          "rounded-xl p-3 text-xs font-bold text-center bg-emerald-100 text-emerald-950 border border-emerald-200";
+        dom.esperaProgramacionBadge.innerHTML = `
+          <div class="flex items-center justify-center gap-1.5">
+            <span>⚡</span>
+            <span class="font-extrabold uppercase tracking-wide">Pedido programado para HOY</span>
+          </div>
+          <p class="text-[11px] font-normal text-emerald-800 mt-0.5">${pedido.programacion_motivo || "Se surtirá en la compra de hoy"}</p>
+        `;
+      }
+    }
 
     const mensajeWa = encodeURIComponent(
       `¡Hola! Te envío el comprobante de mi pedido *${pedido.id_pedido}* por *$${pedido.total}* a nombre de ${pedido.cliente?.nombre} (${pedido.cliente?.facultad_edificio}).`
@@ -1035,6 +1219,16 @@ function abrirPantallaEsperaEnTiempoReal(idPedido) {
     dom.btnWhatsappComprobante.href = `https://wa.me/${DATOS_PAGO.whatsappVendedor}?text=${mensajeWa}`;
 
     const estatus = pedido.estatus || "pendiente";
+
+    // Gestionar aviso de validación bancaria de 15 minutos:
+    // Visible mientras esté pendiente para calmar la ansiedad del estudiante; oculto cuando ya esté aprobado/entregado.
+    if (dom.esperaAvisoDemora) {
+      if (estatus === "pendiente") {
+        dom.esperaAvisoDemora.classList.remove("hidden");
+      } else {
+        dom.esperaAvisoDemora.classList.add("hidden");
+      }
+    }
 
     const claseInactiva =
       "p-2 rounded-xl border border-slate-200 bg-slate-50 font-semibold text-slate-400";

@@ -213,7 +213,8 @@ function renderizarControlesEstado(cfg) {
     abierto: "border-emerald-600 bg-emerald-50 text-emerald-950 shadow-sm ring-2 ring-emerald-500/20",
     en_camino: "border-costcoBlue bg-blue-50 text-blue-950 shadow-sm ring-2 ring-costcoBlue/20",
     en_clase: "border-amber-500 bg-amber-50 text-amber-950 shadow-sm ring-2 ring-amber-500/20",
-    cerrado: "border-rose-600 bg-rose-50 text-rose-950 shadow-sm ring-2 ring-rose-500/20"
+    entregando: "border-rose-600 bg-rose-50 text-rose-950 shadow-sm ring-2 ring-rose-500/20",
+    cerrado: "border-indigo-600 bg-indigo-50 text-indigo-950 shadow-sm ring-2 ring-indigo-500/20"
   };
 
   const estiloInactivo =
@@ -306,7 +307,9 @@ function renderizarMetricasDelDia() {
       : "Sin pagos pendientes por validar";
 
   dom.kpiTotalOrdenes.textContent = String(ordenesValidas);
-  dom.kpiDesgloseOrdenes.textContent = `${ordenesEntregadas} entregadas • ${ordenesActivas} en curso`;
+  const pedidosManana = pedidosHoy.filter((p) => p.programacion_entrega === "manana").length;
+  const pedidosHoySurtido = pedidosHoy.length - pedidosManana;
+  dom.kpiDesgloseOrdenes.textContent = `${ordenesEntregadas} entregadas • ${ordenesActivas} activas (⚡ ${pedidosHoySurtido} hoy / 📅 ${pedidosManana} mañana)`;
   dom.kpiTotalUnidades.textContent = `${totalUnidadesVendidas} pzas`;
 
   // Ranking de productos más vendidos
@@ -493,12 +496,18 @@ function crearTarjetaPedidoKanban(pedido) {
     `;
   }
 
+  const esParaManana = pedido.programacion_entrega === "manana";
+  const badgeProgramacion = esParaManana
+    ? `<span class="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-200" title="${pedido.programacion_motivo || 'Programado para surtir mañana'}"><span>📅</span><span>Para Mañana</span></span>`
+    : `<span class="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 border border-emerald-200" title="${pedido.programacion_motivo || 'Para surtir hoy'}"><span>⚡</span><span>Para Hoy</span></span>`;
+
   card.innerHTML = `
     <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5 flex-wrap">
         <span class="font-mono-code font-black text-sm text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg">
           ${pedido.id_pedido}
         </span>
+        ${badgeProgramacion}
         ${badgeEstatus}
       </div>
       <span class="text-xs font-mono-code text-slate-400">🕒 ${hora}</span>

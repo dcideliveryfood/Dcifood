@@ -98,9 +98,15 @@ export function construirMensajeTelegram(pedido) {
   const montoTotal = Number(pedido.total || 0).toFixed(2).replace(/\.00$/, "");
   const hora = pedido.hora_legible || formatearHoraPedido(new Date());
 
+  const esManana = pedido.programacion_entrega === "manana";
+  const lineaSurtido = esManana
+    ? `📅 Surtido: ⚠️ PROGRAMADO PARA MAÑANA (${pedido.programacion_motivo || "después de hora de corte"})`
+    : `⚡ Surtido: PARA SURTIR HOY (${pedido.programacion_motivo || "antes de hora de corte"})`;
+
   const lineas = [
     `🔔 Nuevo Pedido: ${idPedido}`,
     `👤 Cliente: ${nombreCliente} (${ubicacion})`,
+    lineaSurtido,
     `🍕 Items: ${resumenItems}`,
     `💰 Total: $${montoTotal}`,
     `🕒 Hora: ${hora}`
