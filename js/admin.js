@@ -43,6 +43,11 @@ const dom = {
   // Métricas
   kpiTotalCaja: document.getElementById("kpi-total-caja"),
   kpiPendienteValidarMonto: document.getElementById("kpi-pendiente-validar-monto"),
+  kpiGananciaTotal: document.getElementById("kpi-ganancia-total"),
+  kpiGananciaDesglose: document.getElementById("kpi-ganancia-desglose"),
+  kpiGananciaPiezas: document.getElementById("kpi-ganancia-piezas"),
+  kpiGananciaEnteras: document.getElementById("kpi-ganancia-enteras"),
+  kpiGananciaTotalPie: document.getElementById("kpi-ganancia-total-pie"),
   kpiTotalOrdenes: document.getElementById("kpi-total-ordenes"),
   kpiDesgloseOrdenes: document.getElementById("kpi-desglose-ordenes"),
   kpiTotalUnidades: document.getElementById("kpi-total-unidades"),
@@ -264,12 +269,20 @@ function renderizarMetricasDelDia() {
   let ordenesEntregadas = 0;
   let ordenesActivas = 0;
 
+  let gananciaConfirmada = 0;
+  let gananciaPendiente = 0;
+  let piezasVendidas = 0;
+  let enterasVendidas = 0;
+
   const conteoProductos = new Map(); // id -> { nombre, cantidad, ingresos }
   let totalUnidadesVendidas = 0;
 
   pedidosHoy.forEach((p) => {
     const monto = Number(p.total || 0);
-    if (p.estatus === "pendiente") {
+    const esConfirmado = p.estatus === "aprobado" || p.estatus === "entregado";
+    const esPendiente = p.estatus === "pendiente";
+
+    if (esPendiente) {
       montoPendienteValidar += monto;
       ordenesActivas++;
       ordenesValidas++;
@@ -283,19 +296,33 @@ function renderizarMetricasDelDia() {
       ordenesValidas++;
     }
 
-    // Contabilizar productos de pedidos no cancelados
+    // Contabilizar productos y calcular ganancias por entregas ($5 o $20 por producto)
     if (p.estatus !== "cancelado" && Array.isArray(p.items)) {
       p.items.forEach((item) => {
+        const cant = Number(item.cantidad || 0);
+        const esEntera =
+          (item.id && item.id.includes("pizza-entera")) ||
+          (item.nombre && item.nombre.toLowerCase().includes("entera"));
+        const ganancia = (esEntera ? 20 : 5) * cant;
+
+        if (esConfirmado) {
+          gananciaConfirmada += ganancia;
+          if (esEntera) enterasVendidas += cant;
+          else piezasVendidas += cant;
+        } else if (esPendiente) {
+          gananciaPendiente += ganancia;
+        }
+
         const key = item.id || item.nombre;
         const actual = conteoProductos.get(key) || {
           nombre: item.nombre,
           cantidad: 0,
           ingresos: 0
         };
-        actual.cantidad += Number(item.cantidad || 0);
+        actual.cantidad += cant;
         actual.ingresos += Number(item.subtotal || 0);
         conteoProductos.set(key, actual);
-        totalUnidadesVendidas += Number(item.cantidad || 0);
+        totalUnidadesVendidas += cant;
       });
     }
   });
@@ -305,6 +332,26 @@ function renderizarMetricasDelDia() {
     montoPendienteValidar > 0
       ? `+$${montoPendienteValidar.toLocaleString("es-MX")} en pendientes por validar`
       : "Sin pagos pendientes por validar";
+
+  if (dom.kpiGananciaTotal) {
+    dom.kpiGananciaTotal.textContent = `$${gananciaConfirmada.toLocaleString("es-MX")}`;
+  }
+  if (dom.kpiGananciaDesglose) {
+    if (gananciaPendiente > 0) {
+      dom.kpiGananciaDesglose.textContent = `+$${gananciaPendiente} por validar • ${piezasVendidas + enterasVendidas} arts entregados`;
+    } else {
+      dom.kpiGananciaDesglose.textContent = `${piezasVendidas + enterasVendidas} arts entregados ($5 / $20 c/u)`;
+    }
+  }
+  if (dom.kpiGananciaPiezas) {
+    dom.kpiGananciaPiezas.textContent = `${piezasVendidas} pzas = $${piezasVendidas * 5}`;
+  }
+  if (dom.kpiGananciaEnteras) {
+    dom.kpiGananciaEnteras.textContent = `${enterasVendidas} pzas = $${enterasVendidas * 20}`;
+  }
+  if (dom.kpiGananciaTotalPie) {
+    dom.kpiGananciaTotalPie.textContent = `$${gananciaConfirmada} ganado`;
+  }
 
   dom.kpiTotalOrdenes.textContent = String(ordenesValidas);
   const pedidosManana = pedidosHoy.filter((p) => p.programacion_entrega === "manana").length;
@@ -501,6 +548,17 @@ function crearTarjetaPedidoKanban(pedido) {
     ? `<span class="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-200" title="${pedido.programacion_motivo || 'Programado para surtir mañana'}"><span>📅</span><span>Para Mañana</span></span>`
     : `<span class="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-900 border border-emerald-200" title="${pedido.programacion_motivo || 'Para surtir hoy'}"><span>⚡</span><span>Para Hoy</span></span>`;
 
+  let gananciaPedido = 0;
+  if (Array.isArray(pedido.items)) {
+    pedido.items.forEach((it) => {
+      const cant = Number(it.cantidad || 0);
+      const esEntera =
+        (it.id && it.id.includes("pizza-entera")) ||
+        (it.nombre && it.nombre.toLowerCase().includes("entera"));
+      gananciaPedido += (esEntera ? 20 : 5) * cant;
+    });
+  }
+
   card.innerHTML = `
     <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
       <div class="flex items-center gap-1.5 flex-wrap">
@@ -572,7 +630,12 @@ function crearTarjetaPedidoKanban(pedido) {
     }
 
     <div class="flex items-center justify-between pt-1">
-      <span class="text-xs font-bold uppercase text-slate-400">Total Orden</span>
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <span class="text-xs font-bold uppercase text-slate-400">Total Orden</span>
+        <span class="inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-950 border border-emerald-200" title="Ganancia estimada por costo de entrega ($5 / $20 por producto)">
+          💵 +$${gananciaPedido} entrega
+        </span>
+      </div>
       <span class="text-base font-black text-costcoRed">$${pedido.total}</span>
     </div>
 
@@ -656,15 +719,28 @@ function exportarPedidosDelDia(formato) {
   const fechaStr = new Date().toISOString().slice(0, 10);
 
   if (formato === "json") {
-    const datosExportar = pedidosHoy.map((p) => ({
-      id_pedido: p.id_pedido,
-      fecha_hora: new Date(p.timestampMs || Date.now()).toISOString(),
-      estatus: p.estatus,
-      cliente: p.cliente,
-      clave_rastreo: p.clave_rastreo || "",
-      items: p.items,
-      total: p.total
-    }));
+    const datosExportar = pedidosHoy.map((p) => {
+      let ganancia = 0;
+      if (Array.isArray(p.items)) {
+        p.items.forEach((it) => {
+          const cant = Number(it.cantidad || 0);
+          const esEntera =
+            (it.id && it.id.includes("pizza-entera")) ||
+            (it.nombre && it.nombre.toLowerCase().includes("entera"));
+          ganancia += (esEntera ? 20 : 5) * cant;
+        });
+      }
+      return {
+        id_pedido: p.id_pedido,
+        fecha_hora: new Date(p.timestampMs || Date.now()).toISOString(),
+        estatus: p.estatus,
+        cliente: p.cliente,
+        clave_rastreo: p.clave_rastreo || "",
+        items: p.items,
+        ganancia_entrega_mxn: ganancia,
+        total: p.total
+      };
+    });
 
     const blob = new Blob([JSON.stringify(datosExportar, null, 2)], {
       type: "application/json;charset=utf-8"
@@ -683,6 +759,7 @@ function exportarPedidosDelDia(formato) {
     "facultad_edificio",
     "clave_rastreo",
     "resumen_items",
+    "ganancia_entrega_mxn",
     "total_mxn"
   ];
 
@@ -696,6 +773,17 @@ function exportarPedidosDelDia(formato) {
       .map((i) => `${i.cantidad}x ${i.nombre} ($${i.subtotal})`)
       .join(" | ");
 
+    let ganancia = 0;
+    if (Array.isArray(p.items)) {
+      p.items.forEach((it) => {
+        const cant = Number(it.cantidad || 0);
+        const esEntera =
+          (it.id && it.id.includes("pizza-entera")) ||
+          (it.nombre && it.nombre.toLowerCase().includes("entera"));
+        ganancia += (esEntera ? 20 : 5) * cant;
+      });
+    }
+
     return [
       p.id_pedido,
       formatearHora(p.timestampMs),
@@ -705,6 +793,7 @@ function exportarPedidosDelDia(formato) {
       p.cliente?.facultad_edificio || "",
       p.clave_rastreo || "",
       resumenItems,
+      ganancia,
       p.total || 0
     ]
       .map(escaparCsv)
