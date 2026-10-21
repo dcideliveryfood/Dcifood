@@ -134,8 +134,8 @@ function inicializarDatosDemoSiVacio() {
             id: "rebanada-pizza-pepperoni",
             nombre: "Rebanada de Pizza de Pepperoni (Con: Chile quebrado, Cátsup)",
             cantidad: 2,
-            precio_unitario: 25,
-            subtotal: 50,
+            precio_unitario: 55,
+            subtotal: 110,
             condimentos: ["Chile quebrado", "Cátsup"]
           },
           {
@@ -147,7 +147,7 @@ function inicializarDatosDemoSiVacio() {
             condimentos: []
           }
         ],
-        total: 95,
+        total: 155,
         estatus: "pendiente",
         clave_rastreo: "BBVA-992831",
         timestampMs: ahora - 1000 * 60 * 8

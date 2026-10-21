@@ -372,7 +372,7 @@ function crearTarjetaPedidoKanban(pedido) {
   const hora = formatearHora(pedido.timestampMs);
   const telefonoLimpio = (pedido.cliente?.whatsapp || "").replace(/\D/g, "");
   const textoWa = encodeURIComponent(
-    `¡Hola ${pedido.cliente?.nombre || ""}! Te escribimos de *Costco Campus Express* sobre tu pedido *${pedido.id_pedido}* ($${pedido.total}) para entregar en *${pedido.cliente?.facultad_edificio}*.`
+    `¡Hola ${pedido.cliente?.nombre || ""}! Te escribimos de *Costco Express DCI* sobre tu pedido *${pedido.id_pedido}* ($${pedido.total}) para entregar en *${pedido.cliente?.facultad_edificio}*.`
   );
   const urlWhatsapp = telefonoLimpio
     ? `https://wa.me/52${telefonoLimpio}?text=${textoWa}`
@@ -863,10 +863,10 @@ function registrarEventosAdmin() {
         facultad_edificio: "Facultad de Ingeniería"
       },
       items: [
-        { nombre: "Rebanada de Pizza (Pepperoni / Queso)", cantidad: 2, subtotal: 50 },
+        { nombre: "Rebanada de Pizza (Pepperoni / Queso)", cantidad: 2, subtotal: 110 },
         { nombre: "Chicken Bake Original", cantidad: 1, subtotal: 100 }
       ],
-      total: 150
+      total: 210
     };
 
     const res = await enviarNotificacionTelegram(pedidoPrueba);

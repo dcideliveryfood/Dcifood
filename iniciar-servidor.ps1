@@ -8,7 +8,7 @@ $listener.Prefixes.Add($url)
 $listener.Start()
 
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host " Costco Campus Express - Servidor Local Activo" -ForegroundColor Green
+Write-Host " Costco Express DCI - Servidor Local Activo" -ForegroundColor Green
 Write-Host " Tienda Publica:       $($url)index.html" -ForegroundColor Yellow
 Write-Host " Panel Administracion: $($url)admin.html" -ForegroundColor Yellow
 Write-Host " Presiona Ctrl+C para detener el servidor." -ForegroundColor Gray

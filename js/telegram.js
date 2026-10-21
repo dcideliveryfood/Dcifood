@@ -136,7 +136,7 @@ export function construirTecladoInlineTelegram(pedido) {
   const urlVerEnPanel = `${BASE_ADMIN_URL}?buscar=${encodeURIComponent(idPedido)}`;
 
   const mensajeWhatsApp = encodeURIComponent(
-    `¡Hola ${nombreCliente}! Te escribo de Costco Campus sobre tu pedido ${idPedido} para entregar en ${ubicacion}.`
+    `¡Hola ${nombreCliente}! Te escribo de Costco Express DCI sobre tu pedido ${idPedido} para entregar en ${ubicacion}.`
   );
   const urlWhatsApp = telCliente
     ? `https://wa.me/52${telCliente}?text=${mensajeWhatsApp}`

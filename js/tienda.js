@@ -231,7 +231,7 @@ function renderizarEstadoTienda(config) {
   const { estado, aviso_personalizado, hora_corte } = config;
   dom.statusCutoffTime.textContent = hora_corte || "--:--";
   dom.statusCustomNotice.textContent =
-    aviso_personalizado || "Bienvenido a Costco Campus Express";
+    aviso_personalizado || "Bienvenido a Costco Express DCI";
 
   dom.statusBanner.classList.remove(
     "bg-emerald-600",
