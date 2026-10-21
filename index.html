@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth overflow-x-hidden">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Costco Campus Express | Pedidos Universitarios</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            costcoRed: '#E31837',
+            costcoBlue: '#005DAA',
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen pb-36 overflow-x-hidden selection:bg-costcoRed selection:text-white">
+
+  <!-- BANNER REACTIVO DE ESTADO DE LA TIENDA (config/tienda) -->
+  <div id="status-banner" class="sticky top-0 z-40 transition-colors duration-300 bg-emerald-600 text-white shadow-md">
+    <div class="max-w-6xl mx-auto px-3 sm:px-4 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs sm:text-sm">
+      <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-center sm:text-left min-w-0 max-w-full">
+        <span id="status-dot" class="w-2.5 h-2.5 rounded-full bg-white live-dot shrink-0"></span>
+        <span id="status-badge-label" class="font-extrabold uppercase tracking-wider text-[11px] px-2 py-0.5 rounded bg-black/20 shrink-0">
+          CARGANDO...
+        </span>
+        <p id="status-custom-notice" class="font-medium break-words min-w-0">
+          Conectando con el puesto en tiempo real...
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center justify-center gap-2 shrink-0 text-[11px] sm:text-xs font-semibold bg-black/15 px-3 py-1 rounded-full">
+        <span>⏰ Hora de corte: <strong id="status-cutoff-time">--:--</strong></span>
+        <span id="demo-mode-pill" class="hidden bg-amber-300 text-slate-950 px-2 py-0.5 rounded-full font-bold" title="Sincronizado entre pestañas localmente hasta configurar Firebase">
+          Modo Demo
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEADER PRINCIPAL -->
+  <header class="bg-white border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="flex items-start sm:items-center gap-3 min-w-0">
+        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-costcoRed to-rose-700 text-white flex items-center justify-center text-2xl shadow-md shadow-red-500/20 font-black shrink-0">
+          🍕
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[10px] sm:text-xs font-extrabold uppercase tracking-widest text-costcoBlue bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+              Kirkland Signature & Food Court
+            </span>
+          </div>
+          <h1 class="text-xl sm:text-3xl font-black tracking-tight text-slate-900 break-words mt-0.5">
+            Costco <span class="text-costcoRed">Campus</span> Express
+          </h1>
+          <p class="text-xs sm:text-sm text-slate-500 break-words">
+            Tu antojo recién traído de Costco directo a tu facultad • Entrega incluida
+          </p>
+        </div>
+      </div>
+
+      <!-- ACCIONES RÁPIDAS: RASTREAR PEDIDO Y PANEL ADMIN -->
+      <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <div class="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 flex-1 md:flex-initial min-w-0">
+          <input
+            id="input-rastrear-codigo"
+            type="text"
+            placeholder="Código ej. ORD-7391"
+            maxlength="10"
+            class="bg-transparent text-xs sm:text-sm font-mono-code uppercase px-2.5 py-1.5 w-full md:w-40 min-w-0 focus:outline-none text-slate-800 placeholder:text-slate-400"
+          />
+          <button
+            id="btn-rastrear-pedido"
+            type="button"
+            class="bg-costcoBlue hover:bg-blue-800 active:scale-95 text-white text-xs font-bold px-3 py-2 rounded-lg transition shrink-0"
+          >
+            Rastrear
+          </button>
+        </div>
+
+        <a
+          href="./admin.html"
+          class="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-2.5 rounded-xl transition shrink-0"
+        >
+          <span>⚙️</span>
+          <span>Admin</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ALERTA DE TIENDA CERRADA / BLOQUEO DE PEDIDOS -->
+  <section id="closed-store-overlay" class="hidden max-w-6xl mx-auto px-3 sm:px-4 mt-5">
+    <div class="bg-gradient-to-r from-rose-50 via-red-50 to-orange-50 border-2 border-red-200 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div class="flex items-start gap-3.5 min-w-0">
+        <div id="closed-icon-box" class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center text-2xl shrink-0 shadow">
+          🔒
+        </div>
+        <div class="min-w-0 flex-1">
+          <span id="closed-title-badge" class="inline-block text-[11px] font-extrabold uppercase tracking-wider bg-red-100 text-red-800 px-2.5 py-0.5 rounded-full mb-1">
+            Recepción de pedidos pausada
+          </span>
+          <h2 id="closed-heading" class="text-base sm:text-xl font-extrabold text-slate-900 break-words">
+            En este momento no estamos recibiendo nuevos pedidos
+          </h2>
+          <p id="closed-message-detail" class="text-xs sm:text-sm text-slate-700 mt-1 break-words">
+            Revisa el aviso superior para conocer el próximo horario de entrega en el campus.
+          </p>
+        </div>
+      </div>
+      <div class="w-full sm:w-auto text-xs font-semibold text-slate-600 bg-white/90 border border-red-200 px-3.5 py-2.5 rounded-xl shrink-0">
+        ¿Ya hiciste tu pedido? <br />
+        <span class="text-slate-900 font-bold">Usa el buscador ORD-XXXX arriba</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTENIDO PRINCIPAL: CATÁLOGO Y CARRITO LATERAL EN ESCRITORIO -->
+  <main class="max-w-6xl mx-auto px-3 sm:px-4 mt-5 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+
+    <!-- COLUMNA IZQUIERDA: FILTROS Y PRODUCTOS (8 cols) -->
+    <section class="lg:col-span-8 min-w-0">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <h2 class="text-base sm:text-lg font-extrabold text-slate-800 flex items-center gap-2">
+          <span>🔥 Menú Universitario</span>
+          <span id="catalog-count-badge" class="text-xs font-bold bg-slate-200 text-slate-700 px-2.5 py-0.5 rounded-full">14 productos</span>
+        </h2>
+        <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+          🧂 Condimentos gratis a elegir
+        </span>
+      </div>
+
+      <!-- Pestañas de Categoría con scroll horizontal táctil -->
+      <div id="category-tabs" class="flex items-center gap-2 overflow-x-auto pb-2.5 custom-scrollbar mb-4 -mx-1 px-1">
+        <!-- Renderizado dinámicamente por tienda.js -->
+      </div>
+
+      <!-- Grid de productos -->
+      <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- Renderizado dinámicamente por tienda.js -->
+      </div>
+    </section>
+
+    <!-- COLUMNA DERECHA: RESUMEN DE CARRITO Y CHECKOUT DIRECTO (4 cols) -->
+    <aside class="lg:col-span-4 min-w-0">
+      <div id="checkout-card" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 lg:sticky lg:top-16">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3.5 mb-4">
+          <div class="flex items-center gap-2">
+            <span class="text-xl">🛒</span>
+            <h2 class="text-base sm:text-lg font-extrabold text-slate-900">Tu Pedido</h2>
+          </div>
+          <button
+            id="btn-vaciar-carrito"
+            type="button"
+            class="hidden text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline"
+          >
+            Vaciar carrito
+          </button>
+        </div>
+
+        <!-- Estado vacío del carrito -->
+        <div id="cart-empty-state" class="py-7 text-center">
+          <div class="w-14 h-14 rounded-full bg-slate-100 mx-auto flex items-center justify-center text-2xl mb-2.5">
+            🍕
+          </div>
+          <p class="text-sm font-bold text-slate-700">Tu carrito está vacío</p>
+          <p class="text-xs text-slate-500 mt-1 px-2">
+            Elige tus productos, refresco y condimentos del menú y agrégalos aquí.
+          </p>
+        </div>
+
+        <!-- Lista de items en el carrito -->
+        <div id="cart-items-list" class="hidden space-y-2.5 max-h-64 overflow-y-auto pr-1 custom-scrollbar mb-4">
+          <!-- Items dinámicos -->
+        </div>
+
+        <!-- Totales -->
+        <div id="cart-totals-box" class="hidden border-t border-dashed border-slate-200 pt-3 mb-5">
+          <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
+            <span>Artículos seleccionados</span>
+            <span id="cart-total-items-label" class="font-semibold text-slate-700">0 pzas</span>
+          </div>
+          <div class="flex items-center justify-between text-xs text-emerald-700 mb-2">
+            <span>Entrega en campus universitario</span>
+            <span class="font-bold">Incluida en el precio</span>
+          </div>
+          <div class="flex items-center justify-between text-lg font-black text-slate-900 pt-1 border-t border-slate-100">
+            <span>Total a pagar</span>
+            <span id="cart-total-amount" class="text-costcoRed">$0</span>
+          </div>
+        </div>
+
+        <!-- FORMULARIO DE CHECKOUT -->
+        <form id="checkout-form" class="space-y-3.5">
+          <div>
+            <label for="cliente-nombre" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              Tu Nombre *
+            </label>
+            <input
+              id="cliente-nombre"
+              name="nombre"
+              type="text"
+              required
+              placeholder="Ej. Carlos Mendoza"
+              class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-costcoBlue focus:ring-2 focus:ring-costcoBlue/20 focus:outline-none transition"
+            />
+          </div>
+
+          <div>
+            <label for="cliente-whatsapp" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              WhatsApp (10 dígitos) *
+            </label>
+            <div class="relative">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-xs font-bold text-slate-400">
+                +52
+              </span>
+              <input
+                id="cliente-whatsapp"
+                name="whatsapp"
+                type="tel"
+                inputmode="numeric"
+                pattern="[0-9]{10}"
+                maxlength="10"
+                required
+                placeholder="5512345678"
+                class="w-full rounded-xl border border-slate-300 pl-11 pr-3.5 py-2.5 text-sm font-mono-code focus:border-costcoBlue focus:ring-2 focus:ring-costcoBlue/20 focus:outline-none transition"
+              />
+            </div>
+            <p id="whatsapp-error" class="hidden text-xs text-rose-600 font-semibold mt-1">
+              Ingresa un número válido de 10 dígitos sin espacios.
+            </p>
+          </div>
+
+          <div>
+            <label for="cliente-ubicacion-select" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+              Punto de entrega en el Campus *
+            </label>
+            <select
+              id="cliente-ubicacion-select"
+              required
+              class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm bg-white focus:border-costcoBlue focus:ring-2 focus:ring-costcoBlue/20 focus:outline-none transition mb-2"
+            >
+              <option value="">Selecciona facultad o edificio...</option>
+              <!-- Opciones cargadas desde productos.js -->
+              <option value="OTRO">📍 Especificar otro salón / edificio...</option>
+            </select>
+            <input
+              id="cliente-ubicacion-detalle"
+              type="text"
+              placeholder="Detalle adicional (ej. Banca frente al auditorio / Salón B-204)"
+              class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs focus:bg-white focus:border-costcoBlue focus:outline-none transition"
+            />
+          </div>
+
+          <button
+            id="btn-proceder-pago"
+            type="submit"
+            disabled
+            class="w-full rounded-xl bg-costcoRed hover:bg-red-700 active:scale-[0.99] disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-extrabold py-3.5 px-4 text-sm shadow-md shadow-red-600/15 transition flex items-center justify-center gap-2"
+          >
+            <span>Proceder al Pago (CoDi / SPEI)</span>
+            <span>→</span>
+          </button>
+        </form>
+      </div>
+    </aside>
+  </main>
+
+  <!-- BARRA FLOTANTE INFERIOR DE CARRITO (MÓVIL / TABLET - iOS & Android Safe Area) -->
+  <div
+    id="floating-cart-bar"
+    class="fixed bottom-3 inset-x-3 z-30 lg:hidden hidden safe-bottom-bar"
+  >
+    <button
+      id="btn-ir-checkout-movil"
+      type="button"
+      class="w-full bg-slate-900 hover:bg-slate-800 active:scale-[0.99] text-white rounded-2xl p-3.5 shadow-2xl border border-slate-700 flex items-center justify-between gap-2"
+    >
+      <div class="flex items-center gap-3 min-w-0">
+        <span id="floating-cart-badge" class="w-8 h-8 rounded-xl bg-costcoRed text-white font-black text-sm flex items-center justify-center shrink-0">
+          0
+        </span>
+        <div class="text-left min-w-0">
+          <p class="text-[11px] text-slate-300 font-medium truncate">Revisar pedido y punto de entrega</p>
+          <p class="text-sm font-extrabold">Ir al Checkout</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5 shrink-0">
+        <span id="floating-cart-total" class="text-base sm:text-lg font-black text-amber-400">$0</span>
+        <span class="text-base">↓</span>
+      </div>
+    </button>
+  </div>
+
+  <!-- ====================================================================== -->
+  <!-- MODAL DE PAGO (CoDi + CLABE + Concepto ORD-XXXX)                       -->
+  <!-- ====================================================================== -->
+  <dialog
+    id="modal-pago"
+    class="w-full max-w-lg rounded-3xl bg-white p-0 text-slate-900 shadow-2xl border border-slate-200 overflow-hidden"
+  >
+    <div class="bg-gradient-to-r from-costcoBlue to-blue-800 text-white px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between gap-2">
+      <div class="min-w-0">
+        <span class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-blue-200 block">
+          Paso Final • Transferencia o CoDi
+        </span>
+        <h3 class="text-base sm:text-lg font-black truncate">Completa tu Pago</h3>
+      </div>
+      <button
+        id="btn-cerrar-modal-pago"
+        type="button"
+        class="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white font-bold shrink-0"
+        aria-label="Cerrar"
+      >
+        ✕
+      </button>
+    </div>
+
+    <div class="p-4 sm:p-6 space-y-4 max-h-[80dvh] overflow-y-auto custom-scrollbar">
+      <!-- CÓDIGO DE SEGUIMIENTO DESTACADO -->
+      <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-3.5 sm:p-4 text-center">
+        <p class="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-amber-900">
+          Tu Código Único de Seguimiento
+        </p>
+        <div class="mt-1 flex flex-wrap items-center justify-center gap-2">
+          <span
+            id="modal-codigo-orden"
+            class="text-2xl sm:text-3xl font-black font-mono-code tracking-wider text-slate-900"
+          >
+            ORD-0000
+          </span>
+          <button
+            id="btn-copiar-codigo"
+            type="button"
+            class="text-xs font-bold bg-amber-200 hover:bg-amber-300 active:scale-95 text-amber-950 px-2.5 py-1.5 rounded-lg transition"
+          >
+            Copiar código
+          </button>
+        </div>
+        <!-- INSTRUCCIÓN CLARA REQUERIDA -->
+        <p class="mt-2 text-xs sm:text-sm font-extrabold text-rose-700 bg-rose-100/80 border border-rose-200 rounded-xl py-1.5 px-2.5 break-words">
+          ⚠️ Coloca tu código en el concepto de la transferencia
+        </p>
+      </div>
+
+      <!-- MONTO Y RESUMEN RÁPIDO -->
+      <div class="flex items-center justify-between gap-2 bg-slate-100 rounded-2xl px-4 py-3">
+        <div class="min-w-0 flex-1">
+          <p class="text-xs text-slate-500 font-semibold">Total exacto a transferir</p>
+          <p id="modal-resumen-cliente" class="text-xs text-slate-700 font-medium truncate"></p>
+        </div>
+        <span id="modal-monto-total" class="text-xl sm:text-2xl font-black text-costcoRed shrink-0">$0</span>
+      </div>
+
+      <!-- GRID QR CoDi Y CLABE SPEI -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-stretch">
+        <!-- QR de CoDi -->
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 flex flex-col items-center justify-between text-center">
+          <span class="text-[11px] font-extrabold uppercase tracking-wider text-costcoBlue bg-blue-50 px-2.5 py-0.5 rounded-md mb-2">
+            Cobro Digital CoDi® BBVA
+          </span>
+          <div
+            id="codi-qr-container"
+            class="w-36 h-36 sm:w-40 sm:h-40 bg-white p-2 rounded-xl border border-slate-200 shadow-inner flex items-center justify-center"
+          >
+            <img src="./assets/qr-codi.png" alt="Código QR CoDi BBVA" class="w-full h-full object-contain rounded-lg" />
+          </div>
+          <p class="text-[11px] text-slate-500 mt-2">
+            Escanea o guarda la imagen para leerla desde CoDi® en tu app bancaria
+          </p>
+          <a
+            href="./assets/qr-codi.png"
+            download="QR-CoDi-Costco-Campus.png"
+            class="mt-2 w-full bg-slate-200 hover:bg-slate-300 active:scale-95 text-slate-800 text-xs font-extrabold py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5"
+          >
+            <span>⬇️</span>
+            <span>Guardar imagen QR</span>
+          </a>
+        </div>
+
+        <!-- Datos CLABE SPEI -->
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2.5 flex flex-col justify-between min-w-0">
+          <div>
+            <p class="text-[10px] font-bold uppercase text-slate-400">Banco destino</p>
+            <p id="modal-banco-nombre" class="text-xs sm:text-sm font-extrabold text-slate-800 break-words">BBVA México</p>
+          </div>
+          <div>
+            <p class="text-[10px] font-bold uppercase text-slate-400">Beneficiario</p>
+            <p id="modal-beneficiario-nombre" class="text-xs sm:text-sm font-bold text-slate-800 break-words">Alex</p>
+          </div>
+          <div>
+            <p class="text-[10px] font-bold uppercase text-slate-400">CLABE (18 dígitos)</p>
+            <p
+              id="modal-clabe-texto"
+              class="text-xs font-mono-code font-bold text-slate-900 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 mt-1 break-all select-all"
+            >
+              012180015030010316
+            </p>
+            <button
+              id="btn-copiar-clabe"
+              type="button"
+              class="mt-2 w-full bg-costcoBlue hover:bg-blue-800 active:scale-95 text-white text-xs font-extrabold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5"
+            >
+              <span>📋</span>
+              <span id="label-copiar-clabe">Copiar CLABE</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CLAVE DE RASTREO OPCIONAL -->
+      <div>
+        <label for="input-clave-rastreo" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+          Clave de rastreo o referencia (opcional)
+        </label>
+        <input
+          id="input-clave-rastreo"
+          type="text"
+          placeholder="Ej. últimos 4 dígitos o folio SPEI"
+          class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-mono-code focus:border-costcoBlue focus:ring-2 focus:ring-costcoBlue/20 focus:outline-none"
+        />
+      </div>
+
+      <!-- BOTÓN CONFIRMAR PAGO -->
+      <div class="pt-1 flex flex-col-reverse sm:flex-row gap-2.5">
+        <button
+          id="btn-cancelar-modal-pago"
+          type="button"
+          class="sm:w-1/3 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold py-3 px-4 text-sm transition"
+        >
+          Volver
+        </button>
+        <button
+          id="btn-confirmar-pago"
+          type="button"
+          class="sm:w-2/3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-black py-3.5 px-4 text-sm shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2"
+        >
+          <span>✅ Ya realicé el pago • Confirmar</span>
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ====================================================================== -->
+  <!-- PANTALLA DE ESPERA / RASTREO EN TIEMPO REAL DEL PEDIDO                 -->
+  <!-- ====================================================================== -->
+  <dialog
+    id="modal-espera"
+    class="w-full max-w-lg rounded-3xl bg-white p-0 text-slate-900 shadow-2xl border border-slate-200 overflow-hidden"
+  >
+    <div class="bg-slate-900 text-white px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 live-dot shrink-0"></span>
+        <div class="min-w-0">
+          <p class="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-slate-400">
+            Seguimiento en Tiempo Real
+          </p>
+          <h3 id="espera-codigo-titulo" class="text-base sm:text-lg font-black font-mono-code truncate">ORD-0000</h3>
+        </div>
+      </div>
+      <button
+        id="btn-cerrar-modal-espera"
+        type="button"
+        class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white font-bold shrink-0"
+      >
+        ✕
+      </button>
+    </div>
+
+    <div class="p-4 sm:p-6 space-y-4 max-h-[80dvh] overflow-y-auto custom-scrollbar">
+      <!-- Estado actual visual -->
+      <div id="espera-status-card" class="rounded-2xl p-4 sm:p-5 border-2 border-amber-300 bg-amber-50 text-center">
+        <div id="espera-icono" class="text-3xl sm:text-4xl mb-1.5">⏳</div>
+        <span
+          id="espera-estatus-pill"
+          class="inline-block text-[11px] sm:text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-amber-200 text-amber-950"
+        >
+          Pendiente por validar
+        </span>
+        <h4 id="espera-mensaje-principal" class="text-sm sm:text-lg font-extrabold text-slate-900 mt-2 break-words">
+          Recibimos tu pedido. Estamos validando tu transferencia...
+        </h4>
+        <p id="espera-mensaje-secundario" class="text-xs text-slate-600 mt-1 break-words">
+          Esta pantalla se actualizará automáticamente en cuanto el administrador apruebe tu pedido.
+        </p>
+      </div>
+
+      <!-- Línea de progreso de 3 pasos -->
+      <div class="grid grid-cols-3 gap-1.5 sm:gap-2 text-center text-[11px] sm:text-xs">
+        <div id="step-pendiente" class="p-2 rounded-xl border-2 border-amber-500 bg-amber-50 font-bold text-amber-900">
+          1. Validando
+        </div>
+        <div id="step-aprobado" class="p-2 rounded-xl border border-slate-200 bg-slate-50 font-semibold text-slate-400">
+          2. Preparando
+        </div>
+        <div id="step-entregado" class="p-2 rounded-xl border border-slate-200 bg-slate-50 font-semibold text-slate-400">
+          3. Entregado
+        </div>
+      </div>
+
+      <!-- Detalles del pedido registrado -->
+      <div class="bg-slate-50 rounded-2xl p-3.5 sm:p-4 border border-slate-200 text-xs space-y-2">
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-500 shrink-0">Cliente:</span>
+          <strong id="espera-cliente-nombre" class="text-slate-800 text-right break-words min-w-0">-</strong>
+        </div>
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-500 shrink-0">Punto de entrega:</span>
+          <strong id="espera-cliente-ubicacion" class="text-slate-800 text-right break-words min-w-0">-</strong>
+        </div>
+        <div class="border-t border-slate-200 pt-2">
+          <span class="text-slate-500 block mb-1">Productos y condimentos:</span>
+          <div id="espera-items-lista" class="space-y-1.5 font-medium text-slate-800"></div>
+        </div>
+        <div class="border-t border-slate-200 pt-2 flex justify-between text-sm font-black">
+          <span>Total:</span>
+          <span id="espera-total-monto" class="text-costcoRed">$0</span>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-2.5">
+        <a
+          id="btn-whatsapp-comprobante"
+          href="#"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 px-4 text-xs sm:text-sm text-center transition flex items-center justify-center gap-2"
+        >
+          <span>💬 Enviar comprobante por WhatsApp</span>
+        </a>
+        <button
+          id="btn-nuevo-pedido-espera"
+          type="button"
+          class="rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-3 px-4 text-xs sm:text-sm transition"
+        >
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <script type="module" src="./js/tienda.js"></script>
+</body>
+</html>

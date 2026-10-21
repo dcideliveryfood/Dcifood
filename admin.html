@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth overflow-x-hidden">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Panel de Administración | Costco Campus Express</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            costcoRed: '#E31837',
+            costcoBlue: '#005DAA',
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen pb-16 overflow-x-hidden">
+
+  <!-- TOPBAR ADMINISTRATIVA -->
+  <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-costcoRed flex items-center justify-center text-xl font-black shadow">
+          ⚡
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-black tracking-tight">
+              Dashboard Operativo • Costco Campus
+            </h1>
+            <span id="admin-connection-pill" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              Conectado en vivo
+            </span>
+          </div>
+          <p class="text-xs text-slate-400">
+            Control de estados en tiempo real, validación de transferencias y métricas del día
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button
+          id="btn-abrir-modal-telegram"
+          type="button"
+          class="inline-flex items-center gap-1.5 text-xs font-bold bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 px-3 py-2 rounded-xl transition"
+        >
+          <span>✈️</span>
+          <span>Bot Telegram</span>
+        </button>
+
+        <a
+          href="./index.html"
+          target="_blank"
+          class="inline-flex items-center gap-1.5 text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-3.5 py-2 rounded-xl transition"
+        >
+          <span>🏪</span>
+          <span>Ver Tienda Pública ↗</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 mt-6 space-y-6">
+
+    <!-- ================================================================== -->
+    <!-- 1. PANEL DE CONTROL DE ESTADOS ('config/tienda')                   -->
+    <!-- ================================================================== -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
+        <div>
+          <span class="text-[11px] font-extrabold uppercase tracking-widest text-costcoBlue">
+            Sincronización Reactiva (config/tienda)
+          </span>
+          <h2 class="text-lg font-black text-slate-900">
+            Estado del Puesto y Aviso Público
+          </h2>
+        </div>
+        <div id="toast-guardado" class="hidden text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+          ✓ Cambios publicados en tiempo real en la tienda
+        </div>
+      </div>
+
+      <!-- Switches de Estado: Abierto / En camino a Costco / En clase / Cerrado -->
+      <div class="mb-5">
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+          Selecciona el estado operativo actual
+        </label>
+        <div id="status-switches-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <button
+            type="button"
+            data-estado="abierto"
+            class="status-switch-btn rounded-2xl border-2 p-3.5 text-left transition flex items-start gap-3"
+          >
+            <span class="text-2xl">🟢</span>
+            <div>
+              <p class="text-sm font-black">Abierto</p>
+              <p class="text-[11px] opacity-80">Recibiendo pedidos normalmente</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            data-estado="en_camino"
+            class="status-switch-btn rounded-2xl border-2 p-3.5 text-left transition flex items-start gap-3"
+          >
+            <span class="text-2xl">🚗</span>
+            <div>
+              <p class="text-sm font-black">En camino a Costco</p>
+              <p class="text-[11px] opacity-80">Comprando en tienda • Últimos pedidos</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            data-estado="en_clase"
+            class="status-switch-btn rounded-2xl border-2 p-3.5 text-left transition flex items-start gap-3"
+          >
+            <span class="text-2xl">📚</span>
+            <div>
+              <p class="text-sm font-black">En clase</p>
+              <p class="text-[11px] opacity-80">Pausa temporal y muestra aviso</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            data-estado="cerrado"
+            class="status-switch-btn rounded-2xl border-2 p-3.5 text-left transition flex items-start gap-3"
+          >
+            <span class="text-2xl">🔴</span>
+            <div>
+              <p class="text-sm font-black">Cerrado</p>
+              <p class="text-[11px] opacity-80">Bloquea la creación de pedidos</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Formulario de Aviso Personalizado y Hora de Corte -->
+      <form id="form-config-tienda" class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+        <div class="md:col-span-7">
+          <label for="input-aviso-publico" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            Aviso personalizado en el banner del cliente (aviso_personalizado)
+          </label>
+          <input
+            id="input-aviso-publico"
+            type="text"
+            placeholder="Ej. En clase hasta las 4:00 PM / Entregando en Explanada de Ingeniería"
+            class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-costcoBlue focus:ring-2 focus:ring-costcoBlue/20 focus:outline-none"
+          />
+        </div>
+
+        <div class="md:col-span-2">
+          <label for="input-hora-corte" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+            Hora de corte
+          </label>
+          <input
+            id="input-hora-corte"
+            type="time"
+            value="13:30"
+            class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-mono-code focus:border-costcoBlue focus:ring-2 focus:ring-costcoBlue/20 focus:outline-none"
+          />
+        </div>
+
+        <div class="md:col-span-3">
+          <button
+            type="submit"
+            class="w-full rounded-xl bg-costcoBlue hover:bg-blue-800 text-white font-extrabold py-2.5 px-4 text-sm shadow-sm transition"
+          >
+            Guardar Aviso y Hora
+          </button>
+        </div>
+      </form>
+
+      <!-- Plantillas rápidas de avisos -->
+      <div class="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
+        <span class="text-slate-400 font-semibold mr-1">Avisos rápidos:</span>
+        <button type="button" data-preset-notice="¡Pedidos abiertos! Entregas hoy afuera de cafetería 🍕" class="preset-notice-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-medium transition">
+          🍕 Entregas afuera de cafetería
+        </button>
+        <button type="button" data-preset-notice="En clase hasta las 4:00 PM 📚 Regresando abrimos ronda vespertina" class="preset-notice-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-medium transition">
+          📚 En clase hasta las 4:00 PM
+        </button>
+        <button type="button" data-preset-notice="🚗 En fila del Food Court de Costco • ¡Últimos 15 min para pedir!" class="preset-notice-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-medium transition">
+          🚗 En fila de Costco
+        </button>
+        <button type="button" data-preset-notice="¡Todo agotado por hoy! Nos vemos mañana a las 11:00 AM 🙌" class="preset-notice-btn bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-medium transition">
+          🔒 Agotado por hoy
+        </button>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- 2. MÓDULO DE MÉTRICAS Y EXPORTACIÓN JSON / CSV                     -->
+    <!-- ================================================================== -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <!-- KPIs numéricos (7 cols) -->
+      <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Total en Caja ($ Día)</span>
+            <span class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">💰</span>
+          </div>
+          <div class="mt-3">
+            <p id="kpi-total-caja" class="text-3xl font-black text-slate-900">$0</p>
+            <p id="kpi-pendiente-validar-monto" class="text-xs text-amber-700 font-semibold mt-1">
+              +$0 por validar transferencia
+            </p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Órdenes del Día</span>
+            <span class="w-8 h-8 rounded-xl bg-blue-100 text-costcoBlue flex items-center justify-center font-bold">📦</span>
+          </div>
+          <div class="mt-3">
+            <p id="kpi-total-ordenes" class="text-3xl font-black text-slate-900">0</p>
+            <p id="kpi-desglose-ordenes" class="text-xs text-slate-500 font-medium mt-1">
+              0 entregadas • 0 activas
+            </p>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400 block">Exportar Datos</span>
+            <p class="text-xs text-slate-500 mt-1">
+              Descarga el corte del día para Excel o análisis de datos
+            </p>
+          </div>
+          <div class="mt-3 flex flex-col gap-2">
+            <button
+              id="btn-exportar-csv"
+              type="button"
+              class="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold py-2 px-3 transition flex items-center justify-center gap-1.5"
+            >
+              <span>📊 Descargar CSV (Excel)</span>
+            </button>
+            <button
+              id="btn-exportar-json"
+              type="button"
+              class="w-full rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-extrabold py-2 px-3 transition flex items-center justify-center gap-1.5"
+            >
+              <span>{ } Descargar JSON</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Desglose de Productos Más Vendidos (5 cols) -->
+      <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-black uppercase tracking-wider text-slate-700">
+            🏆 Productos Más Vendidos Hoy
+          </h3>
+          <span id="kpi-total-unidades" class="text-xs font-bold text-costcoBlue bg-blue-50 px-2.5 py-0.5 rounded-full">
+            0 unidades
+          </span>
+        </div>
+        <div id="top-productos-lista" class="space-y-2.5 max-h-36 overflow-y-auto pr-1 custom-scrollbar">
+          <!-- Renderizado dinámicamente -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- 3. VISTA OPERATIVA KANBAN (Pendientes / En preparación / Completados) -->
+    <!-- ================================================================== -->
+    <section class="space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-black text-slate-900">Tablero Operativo de Pedidos</h2>
+          <label class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 cursor-pointer bg-white border border-slate-200 px-3 py-1.5 rounded-xl">
+            <input id="chk-mostrar-cancelados" type="checkbox" class="rounded text-costcoRed focus:ring-0" />
+            <span>Incluir cancelados en completados</span>
+          </label>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <input
+            id="input-buscar-kanban"
+            type="search"
+            placeholder="Buscar por ORD-XXXX, cliente o facultad..."
+            class="w-full sm:w-72 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs focus:border-costcoBlue focus:outline-none"
+          />
+        </div>
+      </div>
+
+      <!-- 3 COLUMNAS KANBAN -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+
+        <!-- COLUMNA 1: PENDIENTES POR VALIDAR (estatus === 'pendiente') -->
+        <div class="bg-amber-50/70 border-2 border-amber-200 rounded-2xl p-4">
+          <div class="flex items-center justify-between pb-3 mb-3 border-b border-amber-200">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+              <h3 class="text-sm font-black uppercase tracking-wider text-amber-950">
+                Pendientes por validar
+              </h3>
+            </div>
+            <span id="count-col-pendiente" class="text-xs font-black bg-amber-200 text-amber-950 px-2.5 py-0.5 rounded-full">
+              0
+            </span>
+          </div>
+          <div id="col-pendiente" class="space-y-3 min-h-[200px]">
+            <!-- Tarjetas de pedidos pendientes -->
+          </div>
+        </div>
+
+        <!-- COLUMNA 2: EN PREPARACIÓN (estatus === 'aprobado') -->
+        <div class="bg-blue-50/70 border-2 border-blue-200 rounded-2xl p-4">
+          <div class="flex items-center justify-between pb-3 mb-3 border-b border-blue-200">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-costcoBlue"></span>
+              <h3 class="text-sm font-black uppercase tracking-wider text-blue-950">
+                En preparación (Aprobados)
+              </h3>
+            </div>
+            <span id="count-col-aprobado" class="text-xs font-black bg-blue-200 text-blue-950 px-2.5 py-0.5 rounded-full">
+              0
+            </span>
+          </div>
+          <div id="col-aprobado" class="space-y-3 min-h-[200px]">
+            <!-- Tarjetas de pedidos aprobados -->
+          </div>
+        </div>
+
+        <!-- COLUMNA 3: COMPLETADOS (estatus === 'entregado' | 'cancelado') -->
+        <div class="bg-emerald-50/70 border-2 border-emerald-200 rounded-2xl p-4">
+          <div class="flex items-center justify-between pb-3 mb-3 border-b border-emerald-200">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-emerald-600"></span>
+              <h3 class="text-sm font-black uppercase tracking-wider text-emerald-950">
+                Completados
+              </h3>
+            </div>
+            <span id="count-col-completado" class="text-xs font-black bg-emerald-200 text-emerald-950 px-2.5 py-0.5 rounded-full">
+              0
+            </span>
+          </div>
+          <div id="col-completado" class="space-y-3 min-h-[200px]">
+            <!-- Tarjetas de pedidos entregados / cancelados -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ====================================================================== -->
+  <!-- MODAL CONFIGURACIÓN / PRUEBA DE TELEGRAM BOT                           -->
+  <!-- ====================================================================== -->
+  <dialog
+    id="modal-telegram-config"
+    class="w-full max-w-md rounded-3xl bg-white p-0 text-slate-900 shadow-2xl border border-slate-200 overflow-hidden"
+  >
+    <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">✈️</span>
+        <h3 class="text-base font-black">Configuración de Bot de Telegram</h3>
+      </div>
+      <button id="btn-cerrar-modal-tg" type="button" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center font-bold">
+        ✕
+      </button>
+    </div>
+
+    <form id="form-telegram-config" class="p-6 space-y-4 text-xs">
+      <p class="text-slate-600 leading-relaxed">
+        Ingresa el <strong>Bot Token</strong> que te dio <code class="bg-slate-100 px-1 py-0.5 rounded font-mono-code">@BotFather</code> y tu <strong>Chat ID</strong> para recibir cada pedido nuevo al instante en tu celular.
+      </p>
+
+      <div>
+        <label for="input-tg-token" class="block font-bold uppercase text-slate-600 mb-1">
+          Telegram Bot Token
+        </label>
+        <input
+          id="input-tg-token"
+          type="text"
+          placeholder="Ej. 7123456789:AAHxyz1234567890abcdef"
+          class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono-code text-xs focus:border-costcoBlue focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label for="input-tg-chatid" class="block font-bold uppercase text-slate-600 mb-1">
+          Telegram Chat ID
+        </label>
+        <input
+          id="input-tg-chatid"
+          type="text"
+          placeholder="Ej. 123456789 o -100987654321"
+          class="w-full rounded-xl border border-slate-300 px-3 py-2 font-mono-code text-xs focus:border-costcoBlue focus:outline-none"
+        />
+      </div>
+
+      <div id="tg-test-feedback" class="hidden rounded-xl p-3 font-medium whitespace-pre-line"></div>
+
+      <div class="flex items-center justify-between gap-2 pt-2">
+        <button
+          id="btn-probar-telegram"
+          type="button"
+          class="flex-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold py-2.5 px-3 transition"
+        >
+          🔔 Enviar Pedido de Prueba
+        </button>
+        <button
+          type="submit"
+          class="flex-1 rounded-xl bg-costcoBlue hover:bg-blue-800 text-white font-extrabold py-2.5 px-3 transition"
+        >
+          Guardar Credenciales
+        </button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="./js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Colección 'config', documento 'tienda'
+    match /config/tienda {
+      allow read: if true;
+      allow write: if request.resource.data.estado in ['abierto', 'en_camino', 'en_clase', 'cerrado']
+                   && request.resource.data.aviso_personalizado is string
+                   && request.resource.data.hora_corte is string;
+    }
+
+    // Colección 'pedidos'
+    match /pedidos/{pedidoId} {
+      allow read: if true;
+
+      // Creación de pedidos desde la tienda pública con validación de esquema
+      allow create: if request.resource.data.id_pedido is string
+                    && request.resource.data.cliente is map
+                    && request.resource.data.cliente.nombre is string
+                    && request.resource.data.cliente.whatsapp is string
+                    && request.resource.data.cliente.facultad_edificio is string
+                    && request.resource.data.items is list
+                    && request.resource.data.total is number
+                    && request.resource.data.total > 0
+                    && request.resource.data.estatus == 'pendiente';
+
+      // Actualización de estatus desde el panel de administración
+      allow update: if request.resource.data.estatus in ['pendiente', 'aprobado', 'entregado', 'cancelado'];
+    }
+  }
+}
