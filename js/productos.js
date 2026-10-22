@@ -1,7 +1,7 @@
 /**
- * Catálogo de Productos del Puesto Universitario (Costco)
- * y Datos Bancarios / Puntos de Entrega en el Campus.
- * Nota: Todos los precios ya incluyen el cargo por entrega en el campus.
+ * Catálogo de Productos del Puesto de Confianza (Costco)
+ * y Datos Bancarios / Puntos de Entrega en la División.
+ * Nota: Todos los precios ya incluyen el cargo por entrega en la división.
  */
 
 export const DATOS_PAGO = {

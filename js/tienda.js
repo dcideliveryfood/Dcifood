@@ -262,7 +262,9 @@ function iniciarTienda() {
  * Pobla las opciones sugeridas de facultades/edificios
  */
 function cargarPuntosDeEntrega() {
+  if (!dom.selectUbicacion || dom.selectUbicacion.tagName !== "SELECT") return;
   const opcionOtro = dom.selectUbicacion.querySelector('option[value="OTRO"]');
+  if (!opcionOtro) return;
   PUNTOS_ENTREGA_SUGERIDOS.forEach((punto, idx) => {
     const opt = document.createElement("option");
     opt.value = punto;
@@ -1383,15 +1385,21 @@ function registrarEventos() {
     }
   });
 
-  // Si elige "OTRO" en punto de entrega, hacer obligatorio el detalle
-  dom.selectUbicacion.addEventListener("change", () => {
-    if (dom.selectUbicacion.value === "OTRO") {
-      dom.inputUbicacionDetalle.required = true;
-      dom.inputUbicacionDetalle.focus();
-    } else {
-      dom.inputUbicacionDetalle.required = false;
-    }
-  });
+  // Si existe select de punto de entrega, gestionar detalle
+  if (dom.selectUbicacion && dom.selectUbicacion.tagName === "SELECT") {
+    dom.selectUbicacion.addEventListener("change", () => {
+      if (dom.selectUbicacion.value === "OTRO") {
+        if (dom.inputUbicacionDetalle) {
+          dom.inputUbicacionDetalle.required = true;
+          dom.inputUbicacionDetalle.focus();
+        }
+      } else {
+        if (dom.inputUbicacionDetalle) {
+          dom.inputUbicacionDetalle.required = false;
+        }
+      }
+    });
+  }
 
   // Envío del formulario de Checkout -> Abre Modal de Pago
   dom.checkoutForm.addEventListener("submit", (e) => {
@@ -1400,8 +1408,6 @@ function registrarEventos() {
 
     const nombre = dom.inputNombre.value.trim();
     const whatsapp = dom.inputWhatsapp.value.replace(/\D/g, "");
-    const seleccionUbicacion = dom.selectUbicacion.value;
-    const detalleUbicacion = dom.inputUbicacionDetalle.value.trim();
 
     if (whatsapp.length !== 10) {
       dom.whatsappError.classList.remove("hidden");
@@ -1410,12 +1416,8 @@ function registrarEventos() {
     }
     dom.whatsappError.classList.add("hidden");
 
-    let facultadEdificio = seleccionUbicacion;
-    if (seleccionUbicacion === "OTRO") {
-      facultadEdificio = detalleUbicacion || "Campus Universitario";
-    } else if (detalleUbicacion) {
-      facultadEdificio = `${seleccionUbicacion} (${detalleUbicacion})`;
-    }
+    // Punto de entrega fijo exclusivo: Afuera de Cafetería
+    const facultadEdificio = "Afuera de Cafetería";
 
     abrirModalPago({
       nombre,
