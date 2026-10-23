@@ -156,8 +156,7 @@ const dom = {
   esperaClienteNombre: document.getElementById("espera-cliente-nombre"),
   esperaClienteUbicacion: document.getElementById("espera-cliente-ubicacion"),
   esperaItemsLista: document.getElementById("espera-items-lista"),
-  esperaTotalMonto: document.getElementById("espera-total-monto"),
-  btnWhatsappComprobante: document.getElementById("btn-whatsapp-comprobante")
+  esperaTotalMonto: document.getElementById("espera-total-monto")
 };
 
 /**
@@ -1215,11 +1214,6 @@ function abrirPantallaEsperaEnTiempoReal(idPedido) {
       }
     }
 
-    const mensajeWa = encodeURIComponent(
-      `¡Hola! Te envío el comprobante de mi pedido *${pedido.id_pedido}* por *$${pedido.total}* a nombre de ${pedido.cliente?.nombre} (${pedido.cliente?.facultad_edificio}).`
-    );
-    dom.btnWhatsappComprobante.href = `https://wa.me/${DATOS_PAGO.whatsappVendedor}?text=${mensajeWa}`;
-
     const estatus = pedido.estatus || "pendiente";
 
     // Gestionar aviso de validación bancaria de 15 minutos:
@@ -1294,7 +1288,7 @@ function abrirPantallaEsperaEnTiempoReal(idPedido) {
       dom.esperaMensajePrincipal.textContent =
         "Este pedido fue cancelado o no se pudo validar el pago.";
       dom.esperaMensajeSecundario.textContent =
-        "Si ya realizaste tu transferencia, envíanos tu comprobante por WhatsApp.";
+        "Si ya realizaste tu transferencia y hubo algún inconveniente, acércate afuera de cafetería con tu código para revisarlo.";
     }
   });
 }
